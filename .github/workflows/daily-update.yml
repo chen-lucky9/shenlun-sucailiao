@@ -23,6 +23,7 @@ jobs:
     env:
       TZ: Asia/Shanghai
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL }}
     steps:
       - uses: actions/checkout@v4
 

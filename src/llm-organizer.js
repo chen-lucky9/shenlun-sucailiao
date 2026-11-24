@@ -77,6 +77,7 @@ ${raw.content}
     throw new Error(`DeepSeek HTTP ${res.status}: ${t.slice(0, 200)}`);
   }
   const data = await res.json();
+  if (data.model) console.log(`[llm] model=${data.model}`);
   let text = data.choices?.[0]?.message?.content || '';
   text = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   let parsed;

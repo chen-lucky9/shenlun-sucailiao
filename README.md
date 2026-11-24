@@ -217,7 +217,7 @@ npm run daily                     # 立即执行一次每日更新（含重建�
 
 手动触发：`npm run daily`，或 `POST /api/admin/update`。
 
-> **AI 整理（DeepSeek）**：配置 `DEEPSEEK_API_KEY` 后，新入库素材会由 DeepSeek（`src/llm-organizer.js`）按 11 维度整理，并在详情页标记「DeepSeek 整理」；未配置时自动回退规则整理（`src/organizer.js`），不会中断。
+> **AI 整理（DeepSeek）**：配置 `DEEPSEEK_API_KEY` 后，新入库素材会由 DeepSeek（`src/llm-organizer.js`）按 11 维度整理，并在详情页标记「DeepSeek 整理」；未配置时自动回退规则整理（`src/organizer.js`），不会中断。模型默认 `deepseek-chat`，可用环境变量 `DEEPSEEK_MODEL` 覆盖（GitHub Actions 中存为仓库 Variable）。
 > 可用 `npm run reorganize:llm` 把已有素材全部重新整理；GitHub Actions 中把 Key 存为仓库 Secret `DEEPSEEK_API_KEY` 即可。
 
 ---
