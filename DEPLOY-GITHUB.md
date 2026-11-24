@@ -47,7 +47,28 @@ https://<你的用户名>.github.io/<仓库名>/
 
 ---
 
-## 五、手机安装
+## 五、启用 DeepSeek AI 整理（可选，推荐）
+
+默认使用规则化整理。配置 API Key 后，新入库素材会由 **DeepSeek** 按 11 维度整理，并在详情页标记「DeepSeek 整理」。
+
+1. 到 https://platform.deepseek.com 申请 API Key；
+2. 仓库 → **Settings → Secrets and variables → Actions → New repository secret**；
+3. 名称填 `DEEPSEEK_API_KEY`，值填你的 Key；
+4. 重新运行 `daily-update` 工作流。
+
+本地使用：
+
+```powershell
+$env:DEEPSEEK_API_KEY="sk-..."
+npm run daily               # 新素材由 DeepSeek 整理
+npm run reorganize:llm      # 把已有素材也全部重新整理（会消耗 token）
+```
+
+> 未配置 Key 时会自动回退规则整理，不会报错、不会中断。
+
+---
+
+## 六、手机安装
 
 - **Android Chrome**：打开站点 → 菜单 →「安装应用 / 添加到主屏幕」；
 - **iOS Safari**：打开站点 → 分享 →「添加到主屏幕」。

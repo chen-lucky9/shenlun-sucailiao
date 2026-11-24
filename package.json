@@ -12,6 +12,7 @@
     "validate": "node scripts/validate.js",
     "collect": "node src/collector.js",
     "daily": "node src/daily.js",
+    "reorganize:llm": "node scripts/reorganize-llm.js",
     "build:pwa": "node scripts/build-static.js",
     "build:single": "node scripts/build-singlefile.js",
     "serve:dist": "node scripts/serve-dist.js"

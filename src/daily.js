@@ -4,6 +4,7 @@ import path from 'node:path';
 import { db, ROOT } from './db.js';
 import { discoverRmrbLayout, fetchHtml, extractRmrbArticle, extractQstheory } from './collector.js';
 import { organizeRawArticle, TOPIC_LABELS } from './organizer.js';
+import { llmEnabled, organizeWithLLM } from './llm-organizer.js';
 
 const DAILY_DIR = path.join(ROOT, 'data', 'daily');
 fs.mkdirSync(DAILY_DIR, { recursive: true });
@@ -14,8 +15,8 @@ const ymdDash = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getD
 
 const upsert = db.prepare(`
 INSERT INTO materials
-  (title, column_name, publish_date, source, source_url, core_view, golden_sentences, argument_structure, topics, writing_angles, summary, original_content)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (title, column_name, publish_date, source, source_url, core_view, golden_sentences, argument_structure, topics, writing_angles, summary, original_content, organized_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(source_url) DO NOTHING
 `);
 
@@ -179,21 +180,37 @@ export async function runDailyUpdate({ manual = false, date = new Date() } = {})
     results.fetched = raws.length;
 
     const inserted = [];
+    results.llm = 0;
+    results.rule = 0;
     for (const r of raws) {
       if (exists(r.url)) { results.skipped++; continue; }
-      const a = organizeRawArticle(r);
+      let a;
+      if (llmEnabled()) {
+        try {
+          a = await organizeWithLLM(r);
+          results.llm++;
+        } catch (e) {
+          console.warn('[daily] DeepSeek 整理失败，回退规则整理：', e.message);
+          a = organizeRawArticle(r);
+          results.rule++;
+        }
+      } else {
+        a = organizeRawArticle(r);
+        results.rule++;
+      }
       if (!a.original_content || a.original_content.length <= 100) { results.skipped++; continue; }
       try {
         const res = upsert.run(
           a.title, a.column_name, a.publish_date, a.source, a.source_url,
           a.core_view, JSON.stringify(a.golden_sentences), a.argument_structure,
-          JSON.stringify(a.topics), JSON.stringify(a.writing_angles), a.summary, a.original_content
+          JSON.stringify(a.topics), JSON.stringify(a.writing_angles), a.summary, a.original_content,
+          a.organized_by || 'rule'
         );
         if (res.changes > 0) { inserted.push(a); results.inserted++; }
         else results.skipped++;
       } catch { results.skipped++; }
     }
-    results.items = inserted.map((a) => ({ title: a.title, source: a.source, date: a.publish_date }));
+    results.items = inserted.map((a) => ({ title: a.title, source: a.source, date: a.publish_date, by: a.organized_by }));
 
     const docFile = writeDailyDoc(inserted, date);
     results.doc = docFile;

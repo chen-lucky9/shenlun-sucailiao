@@ -24,6 +24,7 @@ export function buildStatic() {
     writing_angles: JSON.parse(r.writing_angles || '[]'),
     summary: r.summary,
     original_content: r.original_content,
+    organized_by: r.organized_by || 'rule',
   }));
   const st = stats();
   const months = archiveByMonth();

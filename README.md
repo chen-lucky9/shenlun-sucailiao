@@ -217,7 +217,8 @@ npm run daily                     # 立即执行一次每日更新（含重建�
 
 手动触发：`npm run daily`，或 `POST /api/admin/update`。
 
-> 「AI 整理」环节默认使用规则化整理器（`src/organizer.js`）。如需接入大模型，可在 `organizeRawArticle()` 中改为调用 LLM 接口，其余入库、去重、文档生成流程无需改动。
+> **AI 整理（DeepSeek）**：配置 `DEEPSEEK_API_KEY` 后，新入库素材会由 DeepSeek（`src/llm-organizer.js`）按 11 维度整理，并在详情页标记「DeepSeek 整理」；未配置时自动回退规则整理（`src/organizer.js`），不会中断。
+> 可用 `npm run reorganize:llm` 把已有素材全部重新整理；GitHub Actions 中把 Key 存为仓库 Secret `DEEPSEEK_API_KEY` 即可。
 
 ---
 

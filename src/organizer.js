@@ -246,5 +246,6 @@ export function organizeRawArticle(j) {
     writing_angles: makeAngles(topics),
     summary,
     original_content: (j.content || '').trim(),
+    organized_by: 'rule',
   };
 }

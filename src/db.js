@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS materials (
   writing_angles     TEXT NOT NULL DEFAULT '[]',
   summary            TEXT NOT NULL DEFAULT '',
   original_content   TEXT NOT NULL,
+  organized_by       TEXT NOT NULL DEFAULT 'rule',
   created_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 
@@ -74,6 +75,14 @@ CREATE TABLE IF NOT EXISTS update_log (
   detail        TEXT NOT NULL DEFAULT ''
 );
 `);
+
+// 兼容旧库：补充 organized_by 字段
+{
+  const cols = db.prepare(`PRAGMA table_info(materials)`).all();
+  if (!cols.some((c) => c.name === 'organized_by')) {
+    db.exec(`ALTER TABLE materials ADD COLUMN organized_by TEXT NOT NULL DEFAULT 'rule'`);
+  }
+}
 
 // ---------- 8 大主题（英文 key 硬性要求）----------
 const TOPICS = [
@@ -123,7 +132,7 @@ export function listMaterials({ topic, month, q, page = 1, limit = 20 } = {}) {
   const totalRow = db.prepare(`SELECT COUNT(*) AS c FROM materials ${whereSql}`).get(...params);
   const rows = db
     .prepare(
-      `SELECT id, title, column_name, publish_date, source, source_url, core_view, golden_sentences, argument_structure, topics, writing_angles, summary, original_content
+      `SELECT id, title, column_name, publish_date, source, source_url, core_view, golden_sentences, argument_structure, topics, writing_angles, summary, original_content, organized_by
        FROM materials ${whereSql}
        ORDER BY publish_date DESC, id DESC
        LIMIT ? OFFSET ?`
@@ -136,7 +145,7 @@ export function listMaterials({ topic, month, q, page = 1, limit = 20 } = {}) {
 export function getMaterial(id) {
   const row = db
     .prepare(
-      `SELECT id, title, column_name, publish_date, source, source_url, core_view, golden_sentences, argument_structure, topics, writing_angles, summary, original_content
+      `SELECT id, title, column_name, publish_date, source, source_url, core_view, golden_sentences, argument_structure, topics, writing_angles, summary, original_content, organized_by
        FROM materials WHERE id = ?`
     )
     .get(id);

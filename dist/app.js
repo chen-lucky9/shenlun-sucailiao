@@ -425,6 +425,7 @@ async function renderDetail(id) {
         <div class="detail-meta">
           <span class="badge src">${esc(m.source.split('·')[0])}</span>
           ${m.column_name ? `<span class="badge">${esc(m.column_name)}</span>` : ''}
+          ${m.organized_by === 'deepseek' ? '<span class="badge ai">DeepSeek 整理</span>' : ''}
           <span>${esc(m.publish_date)}</span>
           ${tags}
           <button class="btn-mini ${favorited ? 'on' : ''}" id="fav-btn" style="margin-left:auto">

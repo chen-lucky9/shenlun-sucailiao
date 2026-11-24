@@ -7,13 +7,14 @@ const articles = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'articles.js
 
 const upsert = db.prepare(`
 INSERT INTO materials
-  (title, column_name, publish_date, source, source_url, core_view, golden_sentences, argument_structure, topics, writing_angles, summary, original_content)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (title, column_name, publish_date, source, source_url, core_view, golden_sentences, argument_structure, topics, writing_angles, summary, original_content, organized_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(source_url) DO UPDATE SET
   title=excluded.title, column_name=excluded.column_name, publish_date=excluded.publish_date,
   source=excluded.source, core_view=excluded.core_view, golden_sentences=excluded.golden_sentences,
   argument_structure=excluded.argument_structure, topics=excluded.topics,
-  writing_angles=excluded.writing_angles, summary=excluded.summary, original_content=excluded.original_content
+  writing_angles=excluded.writing_angles, summary=excluded.summary, original_content=excluded.original_content,
+  organized_by=excluded.organized_by
 `);
 
 let inserted = 0, updated = 0;
@@ -31,7 +32,8 @@ for (const a of articles) {
     JSON.stringify(a.topics || []),
     JSON.stringify(a.writing_angles || []),
     a.summary || '',
-    a.original_content || ''
+    a.original_content || '',
+    a.organized_by || 'rule'
   );
   if (r.changes > 0) inserted++;
 }
