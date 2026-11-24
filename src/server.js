@@ -102,6 +102,26 @@ function trimHistory(history) {
   return out;
 }
 
+// 把模型偶发的 LaTeX 转成普通算式，避免页面出现 \[ \] \frac
+function normalizeMath(s) {
+  return String(s)
+    .replace(/\\\[|\\\]/g, '')
+    .replace(/\$\$?/g, '')
+    .replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)')
+    .replace(/\\text\s*\{([^{}]*)\}/g, '$1')
+    .replace(/\\times/g, '×')
+    .replace(/\\div/g, '÷')
+    .replace(/\\approx/g, '≈')
+    .replace(/\\leq?/g, '≤')
+    .replace(/\\geq?/g, '≥')
+    .replace(/\\%/g, '%')
+    .replace(/\\quad|\\,|\\;|\\!/g, ' ')
+    .replace(/\\[a-zA-Z]+/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // ---------- 静态文件 ----------
 function serveStatic(req, res) {
   let urlPath = decodeURIComponent(new URL(req.url, `http://${req.headers.host}`).pathname);
@@ -275,7 +295,7 @@ async function handleApi(req, res, url) {
     ];
     try {
       const r = await chatWithModel({ messages: msgs, temperature: 0.6, maxTokens: 6000 });
-      return sendJson(res, 200, { ok: true, reply: r.text, model: r.model });
+      return sendJson(res, 200, { ok: true, reply: normalizeMath(r.text), model: r.model });
     } catch (e) {
       return sendJson(res, 500, { error: e.message });
     }
@@ -354,7 +374,7 @@ async function handleApi(req, res, url) {
     const sys = `你是花生十三考公方法库助手。下面是方法库资料：\n${lib}\n\n请基于资料回答用户问题；资料没有覆盖的内容要明确说明，不要编造。用简洁的 Markdown 回答。`;
     try {
       const r = await chatWithModel({ messages: [{ role: 'system', content: sys }, { role: 'user', content: String(question) }], temperature: 0.3, maxTokens: 2000 });
-      return sendJson(res, 200, { ok: true, reply: r.text, model: r.model });
+      return sendJson(res, 200, { ok: true, reply: normalizeMath(r.text), model: r.model });
     } catch (e) {
       return sendJson(res, 500, { error: e.message });
     }
@@ -366,7 +386,7 @@ async function handleApi(req, res, url) {
     const { question, module, options, material } = await readBody(req);
     if (!question) return sendJson(res, 400, { error: '缺少题目文字' });
     const lib = loadHuasheng13(module || '资料分析');
-    const sys = `你是花生十三风格的考公行测解题教练。方法库：\n${lib}\n\n请严格模仿花生十三的解题思路，输出 Markdown：\n## 题型识别\n## 解题思路\n## 计算/推理过程\n## 答案\n## 易错点\n## 速算/秒杀技巧（如适用）\n不要编造题目没有的条件；不确定的地方明确说明。`;
+    const sys = `你是花生十三风格的考公行测解题教练。方法库：\n${lib}\n\n请像老师在草稿纸上边写边讲，用“人话”讲题，不要写成教科书：\n1. 先用一句话点明题型；\n2. 再说“人怎么想”：先看问法、定位哪列数据、用什么速算（凑整/截位/交叉相乘）；\n3. 计算只保留关键一步，不要逐步列竖式；不要使用 \\[ \\]、\\frac、\\text 等 LaTeX，用 × ÷ ≈ % 和括号；\n4. 最后给答案 + 1-2 个易错点。\n总长度 300-500 字，简洁。不要编造题目没有的条件；不确定的地方明确说明。`;
     try {
       const r = await chatWithModel({
         messages: [
@@ -376,7 +396,7 @@ async function handleApi(req, res, url) {
         temperature: 0.3,
         maxTokens: 3000,
       });
-      return sendJson(res, 200, { ok: true, reply: r.text, model: r.model });
+      return sendJson(res, 200, { ok: true, reply: normalizeMath(r.text), model: r.model });
     } catch (e) {
       return sendJson(res, 500, { error: e.message });
     }
