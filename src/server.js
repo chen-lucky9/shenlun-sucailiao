@@ -10,6 +10,8 @@ import {
   PUBLIC_DIR, ROOT,
 } from './db.js';
 import { analyzeImage, visionEnabled, visionModel } from './vision.js';
+import { chatWithModel, chatEnabled } from './ai-chat.js';
+import { reviewPrompt } from './prompts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -235,6 +237,29 @@ async function handleApi(req, res, url) {
     try {
       const r = await analyzeImage({ base64: String(image), mime: mime || 'image/jpeg', prompt });
       return sendJson(res, 200, { ok: true, text: r.text, model: r.model });
+    } catch (e) {
+      return sendJson(res, 500, { error: e.message });
+    }
+  }
+
+  // 行测单题复盘（文本对话）：body = { question, history }
+  if (method === 'POST' && pathname === '/api/ai/review') {
+    if (!chatEnabled()) return sendJson(res, 503, { error: '未配置 DEEPSEEK_API_KEY' });
+    const { question, history } = await readBody(req);
+    if (!question) return sendJson(res, 400, { error: '缺少题目文字' });
+    const sys = reviewPrompt();
+    const msgs = [
+      { role: 'system', content: sys },
+      { role: 'user', content: '我的题目：\n' + String(question) },
+      ...(Array.isArray(history)
+        ? history
+            .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+            .slice(-20)
+        : []),
+    ];
+    try {
+      const r = await chatWithModel({ messages: msgs, temperature: 0.6, maxTokens: 4000 });
+      return sendJson(res, 200, { ok: true, reply: r.text, model: r.model });
     } catch (e) {
       return sendJson(res, 500, { error: e.message });
     }
