@@ -255,7 +255,7 @@ async function handleApi(req, res, url) {
     if (!image) return sendJson(res, 400, { error: '缺少图片数据 image(base64)' });
     try {
       const r = await analyzeImage({ base64: String(image), mime: mime || 'image/jpeg', prompt });
-      return sendJson(res, 200, { ok: true, text: r.text, model: r.model });
+      return sendJson(res, 200, { ok: true, text: r.text, model: r.model, finishReason: r.finishReason });
     } catch (e) {
       return sendJson(res, 500, { error: e.message });
     }

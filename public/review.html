@@ -180,7 +180,11 @@
         question = (j.text || '').trim();
         $('#question').value = question;
         $('#start').disabled = !question;
-        setStatus('识别完成，请核对/修改文字后开始复盘', 'ok');
+        if (j.finishReason === 'length') {
+          setStatus('识别结果可能被截断（已达输出上限），请分图上传或调大 VISION_MAX_TOKENS', 'warn');
+        } else {
+          setStatus('识别完成，请核对/修改文字后开始复盘', 'ok');
+        }
         classifyQuestion();
       } catch (e) {
         setStatus('识别请求失败：' + e.message, 'err');

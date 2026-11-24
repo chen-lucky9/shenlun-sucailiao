@@ -2,6 +2,7 @@
 const API_KEY = process.env.VISION_API_KEY || process.env.DEEPSEEK_API_KEY || '';
 const BASE_URL = (process.env.VISION_BASE_URL || process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
 const MODEL = process.env.VISION_MODEL || process.env.DEEPSEEK_MODEL || 'deepseek-flash';
+const MAX_TOKENS = Number(process.env.VISION_MAX_TOKENS || 6000);
 
 export function visionEnabled() {
   return !!API_KEY;
@@ -29,7 +30,7 @@ export async function analyzeImage({ base64, mime = 'image/jpeg', prompt }) {
       },
     ],
     temperature: 0,
-    max_tokens: 2000,
+    max_tokens: MAX_TOKENS,
   };
 
   const res = await fetch(url, {
@@ -43,6 +44,10 @@ export async function analyzeImage({ base64, mime = 'image/jpeg', prompt }) {
     throw new Error(`Vision HTTP ${res.status}: ${t.slice(0, 300)}`);
   }
   const data = await res.json();
-  const text = data.choices?.[0]?.message?.content || '';
-  return { text, model: data.model || MODEL };
+  const choice = data.choices?.[0];
+  return {
+    text: choice?.message?.content || '',
+    model: data.model || MODEL,
+    finishReason: choice?.finish_reason || '',
+  };
 }

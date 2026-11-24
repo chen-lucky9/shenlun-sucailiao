@@ -131,7 +131,8 @@
         if (!r.ok) {
           $('#out').textContent = '请求失败 HTTP ' + r.status + '：' + (j && j.error ? j.error : text.slice(0, 500));
         } else if (j) {
-          $('#out').textContent = '模型：' + (j.model || '') + '\n\n' + (j.text || '（空）');
+          const warn = j.finishReason === 'length' ? '\n\n⚠️ 输出达到上限，可能被截断（调大 VISION_MAX_TOKENS）' : '';
+          $('#out').textContent = '模型：' + (j.model || '') + '\n\n' + (j.text || '（空）') + warn;
         } else {
           $('#out').textContent = text.slice(0, 1000);
         }
