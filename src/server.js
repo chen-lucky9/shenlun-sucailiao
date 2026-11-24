@@ -258,7 +258,7 @@ async function handleApi(req, res, url) {
         : []),
     ];
     try {
-      const r = await chatWithModel({ messages: msgs, temperature: 0.6, maxTokens: 4000 });
+      const r = await chatWithModel({ messages: msgs, temperature: 0.6, maxTokens: 6000 });
       return sendJson(res, 200, { ok: true, reply: r.text, model: r.model });
     } catch (e) {
       return sendJson(res, 500, { error: e.message });

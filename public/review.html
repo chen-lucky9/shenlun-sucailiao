@@ -55,6 +55,7 @@
     <div class="chat-input">
       <textarea id="input" placeholder="回答模型的问题（想到什么说什么，不用组织语言）…"></textarea>
       <button id="send">发送</button>
+      <button id="continue" class="ghost">继续</button>
     </div>
   </div>
 
@@ -221,6 +222,13 @@
     };
 
     $('#recheck').onclick = checkServer;
+
+    $('#continue').onclick = () => {
+      if (busy || !started) return;
+      $('#input').value = '请继续输出剩余部分。';
+      $('#send').click();
+    };
+
     checkServer();
   </script>
 </body>
