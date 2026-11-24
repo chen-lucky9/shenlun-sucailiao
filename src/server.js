@@ -82,6 +82,23 @@ function hashPassword(password, salt) {
   return crypto.scryptSync(password, salt, 64).toString('hex');
 }
 
+// 控制复盘对话的上下文长度，避免 token 随轮次膨胀
+const MAX_HISTORY_CHARS = Number(process.env.MAX_HISTORY_CHARS || 12000);
+function trimHistory(history) {
+  if (!Array.isArray(history)) return [];
+  const out = [];
+  let chars = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (!m || (m.role !== 'user' && m.role !== 'assistant') || typeof m.content !== 'string') continue;
+    const c = m.content;
+    if (out.length > 0 && chars + c.length > MAX_HISTORY_CHARS) break;
+    out.unshift({ role: m.role, content: c });
+    chars += c.length;
+  }
+  return out;
+}
+
 // ---------- 静态文件 ----------
 function serveStatic(req, res) {
   let urlPath = decodeURIComponent(new URL(req.url, `http://${req.headers.host}`).pathname);
@@ -251,11 +268,7 @@ async function handleApi(req, res, url) {
     const msgs = [
       { role: 'system', content: sys },
       { role: 'user', content: '我的题目：\n' + String(question) },
-      ...(Array.isArray(history)
-        ? history
-            .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-            .slice(-20)
-        : []),
+      ...trimHistory(history),
     ];
     try {
       const r = await chatWithModel({ messages: msgs, temperature: 0.6, maxTokens: 6000 });
