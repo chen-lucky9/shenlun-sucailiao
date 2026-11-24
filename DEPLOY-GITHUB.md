@@ -68,7 +68,7 @@ npm run reorganize:llm      # 把已有素材也全部重新整理（会消耗 t
 
 ### 选择模型（可选）
 
-默认使用 `deepseek-chat`。想换模型：
+默认使用 `deepseek-flash`。想换模型：
 
 1. 仓库 → **Settings → Secrets and variables → Actions → Variables** 标签；
 2. **New repository variable**：Name 填 `DEEPSEEK_MODEL`，Value 填模型名；
@@ -78,8 +78,8 @@ npm run reorganize:llm      # 把已有素材也全部重新整理（会消耗 t
 
 | 模型 | 说明 |
 | --- | --- |
-| `deepseek-chat` | 通用对话模型，**本任务推荐**（结构化抽取 + JSON） |
-| `deepseek-reasoner` | 推理模型，速度更慢、费用更高，对 JSON 模式支持可能不同，不建议作为默认 |
+| `deepseek-flash` | 官方快速模型，**当前可用**（结构化抽取 + JSON） |
+| `deepseek-v4-pro` | V4 更强模型，质量更高、费用更高，可按需切换 |
 
 > 运行后可在 `update` 任务日志里看到 `[llm] model=...`，即实际调用的模型。
 

@@ -1,7 +1,7 @@
 // 图片识别（多模态）模块：OpenAI 兼容 /chat/completions
 const API_KEY = process.env.VISION_API_KEY || process.env.DEEPSEEK_API_KEY || '';
 const BASE_URL = (process.env.VISION_BASE_URL || process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
-const MODEL = process.env.VISION_MODEL || process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+const MODEL = process.env.VISION_MODEL || process.env.DEEPSEEK_MODEL || 'deepseek-flash';
 
 export function visionEnabled() {
   return !!API_KEY;

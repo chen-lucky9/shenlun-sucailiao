@@ -7,7 +7,7 @@ import {
 
 const API_KEY = process.env.DEEPSEEK_API_KEY || process.env.LLM_API_KEY || '';
 const BASE_URL = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
-const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-flash';
 const TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS || 120000);
 
 export function llmEnabled() {
