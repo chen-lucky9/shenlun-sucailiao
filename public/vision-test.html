@@ -11,34 +11,67 @@
     input[type=file] { display: block; margin: 8px 0; }
     button { background: #a8322d; color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 15px; cursor: pointer; }
     button:disabled { opacity: .5; cursor: not-allowed; }
+    button.ghost { background: #fff; color: #2b2620; border: 1px solid #d8cfbe; }
     img { max-width: 100%; border-radius: 8px; margin-top: 10px; display: none; }
-    pre { white-space: pre-wrap; word-break: break-word; background: #f7f3ea; padding: 12px; border-radius: 8px; min-height: 60px; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #f7f3ea; padding: 12px; border-radius: 8px; min-height: 80px; }
     .muted { color: #8a8175; font-size: 13px; }
+    .status { padding: 10px 12px; border-radius: 8px; font-size: 14px; margin: 10px 0; }
+    .status.ok { background: #e8f5e9; color: #1b5e20; }
+    .status.warn { background: #fff8e1; color: #7a5b00; }
+    .status.err { background: #fdecea; color: #a8322d; }
+    .status.info { background: #e8f0fe; color: #1a56db; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   </style>
 </head>
 <body>
   <h1>行测图片识别测试</h1>
-  <p class="muted">模型：<span id="model">加载中…</span>。上传一张行测题截图，识别结果会显示在下方。</p>
+  <div id="status" class="status info">正在检测后端服务…</div>
+  <p class="muted">模型：<span id="model">—</span></p>
+
   <div class="card">
     <input type="file" id="file" accept="image/*" capture="environment" />
     <img id="preview" alt="预览" />
-    <p class="muted">图片会自动压缩到最长边 1600px，避免上传过大。</p>
-    <button id="go" disabled>识别</button>
+    <p class="muted">图片会自动压缩到最长边 1600px；支持 JPG/PNG，HEIC 可能无法读取。</p>
+    <div class="row">
+      <button id="go" disabled>识别</button>
+      <button id="recheck" class="ghost">重新检测服务</button>
+    </div>
   </div>
+
   <pre id="out">等待上传图片…</pre>
+
   <script>
     const $ = (s) => document.querySelector(s);
     let b64 = '', mime = 'image/jpeg';
 
-    fetch('/api/ai/vision/info').then((r) => r.json()).then((j) => {
-      $('#model').textContent = j.enabled ? (j.model || '未知') : '未配置（请设置 VISION_API_KEY / VISION_MODEL）';
-    }).catch(() => { $('#model').textContent = '无法获取'; });
+    function setStatus(msg, type = 'info') {
+      const el = $('#status');
+      el.textContent = msg;
+      el.className = 'status ' + type;
+    }
+
+    async function checkServer() {
+      setStatus('正在检测后端服务…', 'info');
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 5000);
+        const r = await fetch('/api/ai/vision/info', { signal: ctrl.signal, cache: 'no-store' });
+        clearTimeout(timer);
+        if (!r.ok) { setStatus('后端返回 HTTP ' + r.status, 'err'); return; }
+        const j = await r.json();
+        $('#model').textContent = j.model || '—';
+        if (j.enabled) setStatus('后端已连接，视觉模型：' + (j.model || '未知'), 'ok');
+        else setStatus('后端已连接，但未配置 VISION_API_KEY / VISION_MODEL（识别会返回 503）', 'warn');
+      } catch (e) {
+        setStatus('无法连接后端：请确认 npm start 正在运行（http://127.0.0.1:3000）', 'err');
+      }
+    }
 
     function loadImage(f) {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve(img);
-        img.onerror = reject;
+        img.onerror = () => reject(new Error('浏览器无法解码这张图片（可能是 HEIC 或损坏文件）'));
         img.src = URL.createObjectURL(f);
       });
     }
@@ -46,6 +79,7 @@
     $('#file').onchange = async () => {
       const f = $('#file').files[0];
       if (!f) return;
+      $('#out').textContent = '正在读取图片…';
       try {
         const img = await loadImage(f);
         const max = 1600;
@@ -63,30 +97,55 @@
         $('#preview').src = dataUrl;
         $('#preview').style.display = 'block';
         $('#go').disabled = false;
-        $('#out').textContent = '图片已就绪，点「识别」。';
+        $('#out').textContent = '图片已就绪（' + w + '×' + h + '，约 ' + Math.round((b64.length * 3) / 4 / 1024) + ' KB），点「识别」。';
       } catch (e) {
+        b64 = '';
+        $('#go').disabled = true;
         $('#out').textContent = '读取图片失败：' + e.message;
       }
     };
 
+    $('#recheck').onclick = checkServer;
+
     $('#go').onclick = async () => {
-      if (!b64) return;
+      if (!b64) { $('#out').textContent = '请先选择图片'; return; }
       $('#go').disabled = true;
-      $('#out').textContent = '识别中…（可能需要几秒到几十秒）';
+      $('#out').textContent = '识别中…已等待 0 秒';
+      const start = Date.now();
+      const tick = setInterval(() => {
+        $('#out').textContent = '识别中…已等待 ' + Math.round((Date.now() - start) / 1000) + ' 秒（最长 150 秒）';
+      }, 1000);
+
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 150000);
       try {
         const r = await fetch('/api/ai/vision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: b64, mime, prompt: '请识别图片中的行测题目，原样输出题干和选项，不要作答。' }),
+          signal: ctrl.signal,
         });
-        const j = await r.json();
-        $('#out').textContent = j.error ? ('错误：' + j.error) : ('模型：' + (j.model || '') + '\n\n' + (j.text || '（空）'));
+        const text = await r.text();
+        let j = null;
+        try { j = JSON.parse(text); } catch { /* not json */ }
+        if (!r.ok) {
+          $('#out').textContent = '请求失败 HTTP ' + r.status + '：' + (j && j.error ? j.error : text.slice(0, 500));
+        } else if (j) {
+          $('#out').textContent = '模型：' + (j.model || '') + '\n\n' + (j.text || '（空）');
+        } else {
+          $('#out').textContent = text.slice(0, 1000);
+        }
       } catch (e) {
-        $('#out').textContent = '请求失败：' + e.message;
+        if (e.name === 'AbortError') $('#out').textContent = '请求超时（150 秒）。可能是模型不支持图片，或网络太慢。';
+        else $('#out').textContent = '请求失败：' + e.message + '\n\n请确认后端已启动，且 VISION_API_KEY / VISION_MODEL 正确。';
       } finally {
+        clearInterval(tick);
+        clearTimeout(timeout);
         $('#go').disabled = false;
       }
     };
+
+    checkServer();
   </script>
 </body>
 </html>
