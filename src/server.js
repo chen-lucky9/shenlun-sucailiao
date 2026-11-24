@@ -14,7 +14,7 @@ import { analyzeImage, visionEnabled, visionModel } from './vision.js';
 import { chatWithModel, chatEnabled } from './ai-chat.js';
 import { classifyQuestion } from './classifier.js';
 import { reviewPrompt } from './prompts.js';
-import { loadHuasheng13, hasHuasheng13 } from './skill-library.js';
+import { loadHuasheng13, hasHuasheng13, listSkillModules, getSkillContent } from './skill-library.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -265,13 +265,9 @@ async function handleApi(req, res, url) {
   // 行测单题复盘（文本对话）：body = { question, history }
   if (method === 'POST' && pathname === '/api/ai/review') {
     if (!chatEnabled()) return sendJson(res, 503, { error: '未配置 DEEPSEEK_API_KEY' });
-    const { question, history, skill, module } = await readBody(req);
+    const { question, history } = await readBody(req);
     if (!question) return sendJson(res, 400, { error: '缺少题目文字' });
-    let sys = reviewPrompt();
-    if (skill === 'huasheng13' && hasHuasheng13()) {
-      const lib = loadHuasheng13(module || '');
-      sys += `\n\n【花生十三方法库（参考资料）】\n${lib}\n\n使用要求：对话结构仍严格按上面的三轮复盘流程；在“正确解题路径 / 速算 / 易错点”部分，优先采用方法库中的识别标志、公式与速算方法。不要照搬方法库原文，要结合本题。`;
-    }
+    const sys = reviewPrompt();
     const msgs = [
       { role: 'system', content: sys },
       { role: 'user', content: '我的题目：\n' + String(question) },
@@ -329,6 +325,35 @@ async function handleApi(req, res, url) {
     if (method === 'DELETE') return sendJson(res, 200, { ok: true, ...deleteMistake(id) });
     const d = await readBody(req);
     return sendJson(res, 200, { ok: true, ...updateMistake(id, d) });
+  }
+
+  // 花生十三方法库：模块列表
+  if (method === 'GET' && pathname === '/api/skills/huasheng13') {
+    return sendJson(res, 200, { has: hasHuasheng13(), modules: listSkillModules() });
+  }
+
+  // 花生十三方法库：某模块内容
+  const skillMatch = pathname.match(/^\/api\/skills\/huasheng13\/(.+)$/);
+  if (method === 'GET' && skillMatch) {
+    const name = decodeURIComponent(skillMatch[1]);
+    const content = getSkillContent(name);
+    if (!content) return sendJson(res, 404, { error: '未找到该模块' });
+    return sendJson(res, 200, { module: name, content });
+  }
+
+  // 花生十三方法库问答
+  if (method === 'POST' && pathname === '/api/ai/skill') {
+    if (!chatEnabled()) return sendJson(res, 503, { error: '未配置 DEEPSEEK_API_KEY' });
+    const { question, module } = await readBody(req);
+    if (!question) return sendJson(res, 400, { error: '缺少问题' });
+    const lib = loadHuasheng13(module || '资料分析');
+    const sys = `你是花生十三考公方法库助手。下面是方法库资料：\n${lib}\n\n请基于资料回答用户问题；资料没有覆盖的内容要明确说明，不要编造。用简洁的 Markdown 回答。`;
+    try {
+      const r = await chatWithModel({ messages: [{ role: 'system', content: sys }, { role: 'user', content: String(question) }], temperature: 0.3, maxTokens: 2000 });
+      return sendJson(res, 200, { ok: true, reply: r.text, model: r.model });
+    } catch (e) {
+      return sendJson(res, 500, { error: e.message });
+    }
   }
 
   return sendJson(res, 404, { error: '接口不存在' });

@@ -49,7 +49,7 @@
 </head>
 <body>
   <h1>行测单题复盘</h1>
-  <p class="muted">上传题目截图 → 识别 → 确认文字 → 按三轮复盘法对话。由 DeepSeek 驱动。 ｜ <a href="/mistakes.html" style="color:#a8322d">错题本 →</a></p>
+  <p class="muted">上传题目截图 → 识别 → 确认文字 → 按三轮复盘法对话。由 DeepSeek 驱动。 ｜ <a href="/skill.html" style="color:#a8322d">方法库 →</a> ｜ <a href="/mistakes.html" style="color:#a8322d">错题本 →</a></p>
   <div id="status" class="status info">正在检测后端…</div>
 
   <div class="card">
@@ -62,11 +62,6 @@
     <p class="muted" style="margin-top:10px">识别结果（可修改；粘贴文字也可以直接开始）：</p>
     <textarea id="question" placeholder="识别出的题干/选项会出现在这里，也可以直接粘贴文字…"></textarea>
     <div class="row" style="margin-top:10px">
-      <span class="muted">复盘技能：</span>
-      <select id="skill">
-        <option value="">通用复盘（小龙哥）</option>
-        <option value="huasheng13">花生十三方法库</option>
-      </select>
       <button id="start" disabled>开始复盘</button>
     </div>
   </div>
@@ -321,7 +316,7 @@
       const r = await fetch('/api/ai/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, history: historyToSend, skill: $('#skill').value, module: $('#cls-module').value }),
+        body: JSON.stringify({ question, history: historyToSend }),
       });
       const j = await r.json();
       if (j.error) throw new Error(j.error);

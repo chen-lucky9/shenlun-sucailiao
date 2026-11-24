@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>花生十三方法库</title>
+  <style>
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 900px; margin: 0 auto; padding: 20px 16px 80px; background: #faf7f1; color: #2b2620; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    a { color: #a8322d; text-decoration: none; }
+    .muted { color: #8a8175; font-size: 13px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    .tab { background: #fff; border: 1px solid #d8cfbe; border-radius: 999px; padding: 7px 16px; font-size: 14px; cursor: pointer; color: #5a5349; }
+    .tab.active { background: #a8322d; border-color: #a8322d; color: #fff; }
+    .status { font-size: 13px; color: #8a8175; margin: 8px 0; }
+    .card { background: #fff; border: 1px solid #e6dfd2; border-radius: 12px; padding: 16px; margin: 14px 0; }
+    .content { background: #fff; border: 1px solid #e6dfd2; border-radius: 12px; padding: 18px 20px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    select, input { padding: 8px 10px; border: 1px solid #d8cfbe; border-radius: 8px; font-size: 14px; font-family: inherit; background: #fff; }
+    input#qa-input { flex: 1; min-width: 220px; }
+    button { background: #a8322d; color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font-size: 14px; cursor: pointer; }
+    button:disabled { opacity: .5; }
+    /* markdown */
+    .content h1, .content h2, .content h3, .content h4, #qa-answer h1, #qa-answer h2, #qa-answer h3, #qa-answer h4 { font-family: "Songti SC", "SimSun", serif; line-height: 1.45; margin: 14px 0 8px; }
+    .content h2, #qa-answer h2 { font-size: 18px; border-left: 3px solid #a8322d; padding-left: 8px; }
+    .content h3, #qa-answer h3 { font-size: 16px; color: #a8322d; }
+    .content p, #qa-answer p { margin: 7px 0; line-height: 1.75; }
+    .content ul, .content ol, #qa-answer ul, #qa-answer ol { margin: 7px 0; padding-left: 22px; }
+    .content li, #qa-answer li { margin: 3px 0; }
+    .content strong, #qa-answer strong { color: #a8322d; }
+    .md-table-wrap { overflow-x: auto; margin: 10px 0; }
+    .md-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    .md-table th, .md-table td { border: 1px solid #e6dfd2; padding: 6px 8px; text-align: left; vertical-align: top; }
+    .md-table th { background: #f7f3ea; font-weight: 600; }
+    .md-quote { margin: 10px 0; padding: 8px 12px; background: #f7f3ea; border-left: 3px solid #d8cfbe; color: #5a5349; }
+    code { background: #f1ebdf; padding: 1px 4px; border-radius: 4px; font-family: Consolas, monospace; font-size: 13px; }
+    pre.md-code { background: #f7f3ea; padding: 10px; border-radius: 8px; overflow-x: auto; }
+    #qa-answer { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1>花生十三方法库</h1>
+  <p class="muted"><a href="/review.html">← 去单题复盘</a> ｜ <a href="/mistakes.html">错题本</a> ｜ 按模块浏览方法，或直接提问。</p>
+
+  <div class="tabs" id="tabs"></div>
+  <div class="status" id="status">加载中…</div>
+  <div class="content" id="content"></div>
+
+  <h2 style="font-size:17px;margin-top:24px">方法库问答</h2>
+  <div class="card">
+    <div class="row">
+      <select id="qa-module"></select>
+      <input id="qa-input" placeholder="例如：截位直除怎么用？415 份数是什么？" />
+      <button id="qa-btn">提问</button>
+    </div>
+    <div id="qa-answer"></div>
+  </div>
+
+  <script src="/md.js"></script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    let modules = [];
+
+    async function loadModules() {
+      try {
+        const r = await fetch('/api/skills/huasheng13');
+        const j = await r.json();
+        modules = j.modules || [];
+        $('#tabs').innerHTML = modules.map((m) => `<button class="tab" data-name="${m.name}">${m.name}</button>`).join('');
+        $('#qa-module').innerHTML = modules.map((m) => `<option>${m.name}</option>`).join('');
+        document.querySelectorAll('.tab').forEach((b) => (b.onclick = () => selectModule(b.dataset.name)));
+        if (modules.length) selectModule(modules[0].name);
+        else $('#status').textContent = '未找到方法库文件';
+      } catch (e) {
+        $('#status').textContent = '加载失败：' + e.message;
+      }
+    }
+
+    async function selectModule(name) {
+      document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.name === name));
+      $('#status').textContent = '加载中…';
+      try {
+        const r = await fetch('/api/skills/huasheng13/' + encodeURIComponent(name));
+        const j = await r.json();
+        if (j.error) { $('#status').textContent = j.error; return; }
+        $('#content').innerHTML = renderMarkdown(j.content || '');
+        $('#status').textContent = name + ' · ' + (j.content || '').length + ' 字';
+      } catch (e) {
+        $('#status').textContent = '加载失败：' + e.message;
+      }
+    }
+
+    $('#qa-btn').onclick = async () => {
+      const q = $('#qa-input').value.trim();
+      if (!q) return;
+      $('#qa-btn').disabled = true;
+      $('#qa-answer').innerHTML = '思考中…';
+      try {
+        const r = await fetch('/api/ai/skill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q, module: $('#qa-module').value }),
+        });
+        const j = await r.json();
+        $('#qa-answer').innerHTML = j.error ? ('错误：' + j.error) : renderMarkdown(j.reply || '');
+      } catch (e) {
+        $('#qa-answer').innerHTML = '请求失败：' + e.message;
+      } finally {
+        $('#qa-btn').disabled = false;
+      }
+    };
+
+    loadModules();
+  </script>
+</body>
+</html>
