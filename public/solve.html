@@ -53,6 +53,8 @@
     <img id="preview" alt="预览" />
     <p class="muted" style="margin-top:8px">识别结果（可修改；也可直接粘贴题目文字）：</p>
     <textarea id="question" placeholder="题干和选项…"></textarea>
+    <p class="muted" style="margin-top:8px">材料/表格（可选；资料分析题请把表格数据粘到这里，或确保拍照包含完整表格）：</p>
+    <textarea id="material" placeholder="例如：&#10;价位 | 2020年 | 2024年 | 2025年1-5月&#10;10万以下 | 12.3 | 45.6 | 67.8&#10;..."></textarea>
     <div class="row" style="margin-top:8px">
       <span class="muted">题型：</span>
       <select id="module">
@@ -155,7 +157,7 @@
         const r = await fetch('/api/ai/vision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: b64, mime, prompt: '请识别图片中的行测题目，原样输出题干和选项，不要作答。' }),
+          body: JSON.stringify({ image: b64, mime, prompt: '请识别图片中的全部内容，原样转写，不要作答：1) 题干与选项；2) 表格/图表的所有表头、行、数字、单位、注释；3) 材料文字。看不清的地方标注【不清晰】，不要编造。' }),
         });
         const j = await r.json();
         if (j.error) { setStatus('识别失败：' + j.error, 'err'); return; }
@@ -213,7 +215,7 @@
         const r = await fetch('/api/ai/solve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, module: $('#module').value }),
+          body: JSON.stringify({ question, module: $('#module').value, material: $('#material').value.trim() }),
         });
         const j = await r.json();
         if (j.error) { $('#solution').innerHTML = '<p class="muted">错误：' + j.error + '</p>'; setStatus('解题失败', 'err'); return; }

@@ -363,7 +363,7 @@ async function handleApi(req, res, url) {
   // 花生十三风格解题
   if (method === 'POST' && pathname === '/api/ai/solve') {
     if (!chatEnabled()) return sendJson(res, 503, { error: '未配置 DEEPSEEK_API_KEY' });
-    const { question, module, options } = await readBody(req);
+    const { question, module, options, material } = await readBody(req);
     if (!question) return sendJson(res, 400, { error: '缺少题目文字' });
     const lib = loadHuasheng13(module || '资料分析');
     const sys = `你是花生十三风格的考公行测解题教练。方法库：\n${lib}\n\n请严格模仿花生十三的解题思路，输出 Markdown：\n## 题型识别\n## 解题思路\n## 计算/推理过程\n## 答案\n## 易错点\n## 速算/秒杀技巧（如适用）\n不要编造题目没有的条件；不确定的地方明确说明。`;
@@ -371,7 +371,7 @@ async function handleApi(req, res, url) {
       const r = await chatWithModel({
         messages: [
           { role: 'system', content: sys },
-          { role: 'user', content: String(question) + (options ? '\n选项：' + options : '') },
+          { role: 'user', content: (material ? '【材料/表格】\n' + material + '\n\n' : '') + String(question) + (options ? '\n选项：' + options : '') },
         ],
         temperature: 0.3,
         maxTokens: 3000,

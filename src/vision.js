@@ -24,7 +24,7 @@ export async function analyzeImage({ base64, mime = 'image/jpeg', prompt }) {
       {
         role: 'user',
         content: [
-          { type: 'text', text: prompt || '请识别图片中的行测题目，原样输出题干和选项，不要作答。' },
+          { type: 'text', text: prompt || '请识别图片中的全部内容，原样转写，不要作答：1) 题干与选项；2) 表格/图表的所有表头、行、数字、单位、注释；3) 材料文字。看不清的地方标注【不清晰】，不要编造。' },
           { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}` } },
         ],
       },

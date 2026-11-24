@@ -191,7 +191,7 @@
         const r = await fetch('/api/ai/vision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: b64, mime, prompt: '请识别图片中的行测题目，原样输出题干和选项，不要作答。' }),
+          body: JSON.stringify({ image: b64, mime, prompt: '请识别图片中的全部内容，原样转写，不要作答：1) 题干与选项；2) 表格/图表的所有表头、行、数字、单位、注释；3) 材料文字。看不清的地方标注【不清晰】，不要编造。' }),
         });
         const j = await r.json();
         if (j.error) { setStatus('识别失败：' + j.error, 'err'); return; }
