@@ -1,0 +1,59 @@
+name: daily-update
+
+# 可选：推到 GitHub 并开启 Pages（Source 选 GitHub Actions）后，
+# 每天 07:30（北京时间）自动抓取、重建并发布离线 PWA，无需电脑常开。
+on:
+  schedule:
+    - cron: '30 23 * * *' # UTC 23:30 = 北京时间 07:30
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 抓取并重建离线版
+        run: node src/daily.js
+
+      - name: 持久化数据库与日报
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/materials.db data/daily
+          git commit -m "chore: daily update $(date -u +%F)" || echo "no changes"
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: 配置 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 上传 Pages 构建产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,20 @@
+{
+  "name": "shenlun-sucailiao",
+  "version": "1.0.0",
+  "description": "申论素材库 —— 公务员考试申论备考素材积累与检索应用",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "seed": "node src/seed.js",
+    "validate": "node scripts/validate.js",
+    "collect": "node src/collector.js",
+    "daily": "node src/daily.js",
+    "build:pwa": "node scripts/build-static.js",
+    "build:single": "node scripts/build-singlefile.js",
+    "serve:dist": "node scripts/serve-dist.js"
+  },
+  "dependencies": {}
+}

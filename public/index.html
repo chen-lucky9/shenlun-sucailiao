@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#a8322d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="申论素材库" />
+  <title>申论素材库 · 公务员考试申论备考</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#/">
+        <span class="brand-mark">申</span>
+        <span class="brand-text">申论素材库</span>
+      </a>
+      <nav class="nav">
+        <a href="#/" data-nav="home">首页</a>
+        <a href="#/archive" data-nav="archive">历史归档</a>
+        <a href="#/favorites" data-nav="favorites">我的收藏</a>
+      </nav>
+      <div class="topbar-right">
+        <form class="search" id="search-form" role="search">
+          <input id="search-input" type="search" placeholder="搜索标题 / 摘要 / 金句…" autocomplete="off" />
+          <button type="submit" aria-label="搜索">搜索</button>
+        </form>
+        <div class="auth" id="auth-area"></div>
+      </div>
+    </div>
+  </header>
+
+  <main id="app" class="app"></main>
+
+  <footer class="footer">
+    <p>申论素材库 · 聚合人民日报、求是网、共产党员网等权威来源评论文章与重要讲话</p>
+    <p class="muted">素材仅供学习研究使用，版权归原作者及原媒体所有。来源以纯文本标注，原文请在官方渠道查阅。</p>
+  </footer>
+
+  <div class="modal-mask" id="auth-modal" hidden>
+    <div class="modal">
+      <button class="modal-close" id="modal-close" aria-label="关闭">×</button>
+      <h2 id="auth-modal-title">登录</h2>
+      <p class="muted" id="auth-modal-sub">登录后可收藏重点素材</p>
+      <form id="auth-form">
+        <label>用户名<input id="auth-username" type="text" autocomplete="username" required /></label>
+        <label>密码<input id="auth-password" type="password" autocomplete="current-password" required /></label>
+        <p class="form-error" id="auth-error"></p>
+        <button type="submit" class="btn-primary" id="auth-submit">登录</button>
+      </form>
+      <p class="muted auth-switch">
+        <a href="#" id="auth-switch-link">没有账号？注册一个</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- 手机端底部导航 -->
+  <nav class="mobile-nav" id="mobile-nav" aria-label="手机导航">
+    <a href="#/" data-mnav="home"><span class="mn-ico">⌂</span><span>首页</span></a>
+    <a href="#/archive" data-mnav="archive"><span class="mn-ico">▤</span><span>归档</span></a>
+    <a href="#/search" data-mnav="search"><span class="mn-ico">⌕</span><span>搜索</span></a>
+    <a href="#/favorites" data-mnav="favorites"><span class="mn-ico">★</span><span>收藏</span></a>
+  </nav>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

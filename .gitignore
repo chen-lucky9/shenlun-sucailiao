@@ -1,0 +1,15 @@
+node_modules/
+tools/
+
+# SQLite 运行时文件与日志
+data/materials.db-wal
+data/materials.db-shm
+data/.daily.lock
+data/_*.log
+data/_*.txt
+data/daily-job.log
+
+# 采集过程辅助文件
+data/raw/_*.json
+data/raw/_*.txt
+data/raw/_*.log
