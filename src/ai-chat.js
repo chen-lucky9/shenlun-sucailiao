@@ -13,6 +13,9 @@ export function chatModel() {
 
 export async function chatWithModel({ messages, temperature = 0.6, maxTokens = 4000 }) {
   if (!API_KEY) throw new Error('未配置 DEEPSEEK_API_KEY');
+  if (!/^[\x21-\x7E]+$/.test(API_KEY)) {
+    throw new Error('DEEPSEEK_API_KEY 含非 ASCII 字符（可能填成了占位符 sk-你的key），请换成真实 Key');
+  }
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },

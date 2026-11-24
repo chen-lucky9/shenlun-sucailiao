@@ -13,6 +13,9 @@ export function visionModel() {
 
 export async function analyzeImage({ base64, mime = 'image/jpeg', prompt }) {
   if (!API_KEY) throw new Error('未配置 VISION_API_KEY / DEEPSEEK_API_KEY');
+  if (!/^[\x21-\x7E]+$/.test(API_KEY)) {
+    throw new Error('VISION_API_KEY / DEEPSEEK_API_KEY 含非 ASCII 字符（可能填成了占位符），请换成真实 Key');
+  }
   const url = `${BASE_URL}/chat/completions`;
   const body = {
     model: MODEL,
