@@ -87,6 +87,7 @@ function hashPassword(password, salt) {
 
 // 控制复盘对话的上下文长度，避免 token 随轮次膨胀
 const MAX_HISTORY_CHARS = Number(process.env.MAX_HISTORY_CHARS || 12000);
+const MAX_ANSWER_TOKENS = Number(process.env.MAX_ANSWER_TOKENS || 8000);
 function trimHistory(history) {
   if (!Array.isArray(history)) return [];
   const out = [];
@@ -294,7 +295,7 @@ async function handleApi(req, res, url) {
       ...trimHistory(history),
     ];
     try {
-      const r = await chatWithModel({ messages: msgs, temperature: 0.6, maxTokens: 6000 });
+      const r = await chatWithModel({ messages: msgs, temperature: 0.6, maxTokens: MAX_ANSWER_TOKENS });
       return sendJson(res, 200, { ok: true, reply: normalizeMath(r.text), model: r.model });
     } catch (e) {
       return sendJson(res, 500, { error: e.message });
@@ -373,7 +374,7 @@ async function handleApi(req, res, url) {
     const lib = loadHuasheng13(module || '资料分析');
     const sys = `你是花生十三考公方法库助手。下面是方法库资料：\n${lib}\n\n请基于资料回答用户问题；资料没有覆盖的内容要明确说明，不要编造。用简洁的 Markdown 回答。`;
     try {
-      const r = await chatWithModel({ messages: [{ role: 'system', content: sys }, { role: 'user', content: String(question) }], temperature: 0.3, maxTokens: 2000 });
+      const r = await chatWithModel({ messages: [{ role: 'system', content: sys }, { role: 'user', content: String(question) }], temperature: 0.3, maxTokens: 4000 });
       return sendJson(res, 200, { ok: true, reply: normalizeMath(r.text), model: r.model });
     } catch (e) {
       return sendJson(res, 500, { error: e.message });
@@ -394,7 +395,7 @@ async function handleApi(req, res, url) {
           { role: 'user', content: (material ? '【材料/表格】\n' + material + '\n\n' : '') + String(question) + (options ? '\n选项：' + options : '') },
         ],
         temperature: 0.3,
-        maxTokens: 3000,
+        maxTokens: MAX_ANSWER_TOKENS,
       });
       return sendJson(res, 200, { ok: true, reply: normalizeMath(r.text), model: r.model });
     } catch (e) {
