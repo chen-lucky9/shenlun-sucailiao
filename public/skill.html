@@ -12,6 +12,9 @@
     .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
     .tab { background: #fff; border: 1px solid #d8cfbe; border-radius: 999px; padding: 7px 16px; font-size: 14px; cursor: pointer; color: #5a5349; }
     .tab.active { background: #a8322d; border-color: #a8322d; color: #fff; }
+    .group { margin: 10px 0; }
+    .group-title { display: block; font-size: 12px; color: #8a8175; margin-bottom: 6px; }
+    .group-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
     .status { font-size: 13px; color: #8a8175; margin: 8px 0; }
     .card { background: #fff; border: 1px solid #e6dfd2; border-radius: 12px; padding: 16px; margin: 14px 0; }
     .content { background: #fff; border: 1px solid #e6dfd2; border-radius: 12px; padding: 18px 20px; }
@@ -66,8 +69,19 @@
         const r = await fetch('/api/skills/huasheng13');
         const j = await r.json();
         modules = j.modules || [];
-        $('#tabs').innerHTML = modules.map((m) => `<button class="tab" data-name="${m.name}">${m.name}</button>`).join('');
-        $('#qa-module').innerHTML = modules.map((m) => `<option>${m.name}</option>`).join('');
+        const groups = [...new Set(modules.map((m) => m.group))];
+        $('#tabs').innerHTML = groups
+          .map((g) => {
+            const items = modules.filter((m) => m.group === g);
+            return `<div class="group"><span class="group-title">${g}</span><div class="group-tabs">${items.map((m) => `<button class="tab" data-name="${m.name}">${m.name}</button>`).join('')}</div></div>`;
+          })
+          .join('');
+        $('#qa-module').innerHTML = groups
+          .map((g) => {
+            const items = modules.filter((m) => m.group === g);
+            return `<optgroup label="${g}">${items.map((m) => `<option>${m.name}</option>`).join('')}</optgroup>`;
+          })
+          .join('');
         document.querySelectorAll('.tab').forEach((b) => (b.onclick = () => selectModule(b.dataset.name)));
         if (modules.length) selectModule(modules[0].name);
         else $('#status').textContent = '未找到方法库文件';
