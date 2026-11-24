@@ -7,10 +7,12 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import {
   db, listTopics, listMaterials, getMaterial, archiveByMonth, stats,
+  addMistake, listMistakes, updateMistake, deleteMistake, mistakeStats,
   PUBLIC_DIR, ROOT,
 } from './db.js';
 import { analyzeImage, visionEnabled, visionModel } from './vision.js';
 import { chatWithModel, chatEnabled } from './ai-chat.js';
+import { classifyQuestion } from './classifier.js';
 import { reviewPrompt } from './prompts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -276,6 +278,52 @@ async function handleApi(req, res, url) {
     } catch (e) {
       return sendJson(res, 500, { error: e.message });
     }
+  }
+
+  // 行测题型分类
+  if (method === 'POST' && pathname === '/api/ai/classify') {
+    if (!chatEnabled()) return sendJson(res, 503, { error: '未配置 DEEPSEEK_API_KEY' });
+    const { question } = await readBody(req);
+    if (!question) return sendJson(res, 400, { error: '缺少题目文字' });
+    try {
+      const r = await classifyQuestion(String(question));
+      return sendJson(res, 200, { ok: true, ...r });
+    } catch (e) {
+      return sendJson(res, 500, { error: e.message });
+    }
+  }
+
+  // 错题本统计
+  if (method === 'GET' && pathname === '/api/mistakes/stats') {
+    return sendJson(res, 200, mistakeStats());
+  }
+
+  // 错题本列表
+  if (method === 'GET' && pathname === '/api/mistakes') {
+    const module = url.searchParams.get('module') || '';
+    const question_type = url.searchParams.get('type') || '';
+    const error_type = url.searchParams.get('error') || '';
+    const mastery = url.searchParams.get('mastery') || '';
+    const q = url.searchParams.get('q') || '';
+    const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') || 50)));
+    const offset = Math.max(0, Number(url.searchParams.get('offset') || 0));
+    return sendJson(res, 200, listMistakes({ module, question_type, error_type, mastery, q, limit, offset }));
+  }
+
+  // 添加错题
+  if (method === 'POST' && pathname === '/api/mistakes') {
+    const d = await readBody(req);
+    if (!d || !d.question_text) return sendJson(res, 400, { error: '缺少题目文字' });
+    return sendJson(res, 201, { ok: true, ...addMistake(d) });
+  }
+
+  // 更新 / 删除错题
+  const mistakeMatch = pathname.match(/^\/api\/mistakes\/(\d+)$/);
+  if (mistakeMatch && (method === 'PATCH' || method === 'DELETE')) {
+    const id = Number(mistakeMatch[1]);
+    if (method === 'DELETE') return sendJson(res, 200, { ok: true, ...deleteMistake(id) });
+    const d = await readBody(req);
+    return sendJson(res, 200, { ok: true, ...updateMistake(id, d) });
   }
 
   return sendJson(res, 404, { error: '接口不存在' });

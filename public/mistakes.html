@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>错题本 · 行测</title>
+  <style>
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 960px; margin: 0 auto; padding: 20px 16px 80px; background: #faf7f1; color: #2b2620; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    h2 { font-size: 16px; margin: 22px 0 10px; }
+    a { color: #a8322d; text-decoration: none; }
+    .muted { color: #8a8175; font-size: 13px; }
+    .card { background: #fff; border: 1px solid #e6dfd2; border-radius: 12px; padding: 14px 16px; margin: 12px 0; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .stat { background: #fff; border: 1px solid #e6dfd2; border-radius: 10px; padding: 12px; }
+    .stat b { font-size: 22px; color: #a8322d; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .chip { background: #f1ebdf; border-radius: 999px; padding: 3px 10px; font-size: 12px; color: #5a5349; }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; }
+    .filters input, .filters select { padding: 7px 10px; border: 1px solid #d8cfbe; border-radius: 8px; font-size: 13px; font-family: inherit; background: #fff; }
+    .filters input#q { min-width: 180px; }
+    button { background: #a8322d; color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+    button.ghost { background: #fff; color: #2b2620; border: 1px solid #d8cfbe; }
+    button.danger { background: #fff; color: #a8322d; border: 1px solid #eccfca; }
+    .item { background: #fff; border: 1px solid #e6dfd2; border-radius: 12px; padding: 14px 16px; margin: 10px 0; }
+    .item-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; color: #5a5349; }
+    .tag { background: #e8f0fe; color: #1a56db; padding: 2px 8px; border-radius: 999px; }
+    .tag.err { background: #fdecea; color: #a8322d; }
+    .tag.ok { background: #e8f5e9; color: #1b5e20; }
+    .qtext { font-family: "Songti SC", "SimSun", serif; font-size: 15px; line-height: 1.7; margin: 10px 0; white-space: pre-wrap; }
+    .meta { font-size: 13px; color: #5a5349; margin: 6px 0; white-space: pre-wrap; }
+    .item-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+    .item-foot select { padding: 5px 8px; border: 1px solid #d8cfbe; border-radius: 6px; font-size: 12px; }
+    .empty { text-align: center; color: #8a8175; padding: 40px; }
+  </style>
+</head>
+<body>
+  <h1>错题本</h1>
+  <p class="muted"><a href="/review.html">← 去单题复盘</a> ｜ 按模块、题型、错因分类汇总，手动维护掌握度。</p>
+
+  <div id="stats"></div>
+
+  <h2>筛选</h2>
+  <div class="filters">
+    <input id="q" placeholder="搜索题干/摘要" />
+    <select id="module">
+      <option value="">全部模块</option>
+      <option>言语理解与表达</option>
+      <option>判断推理</option>
+      <option>数量关系</option>
+      <option>资料分析</option>
+      <option>常识判断</option>
+      <option>未分类</option>
+    </select>
+    <input id="type" placeholder="题型（如 增长率）" />
+    <select id="error">
+      <option value="">全部错因</option>
+      <option>A 知识缺口</option>
+      <option>B 题型识别错误</option>
+      <option>C 方法选择错误</option>
+      <option>D 步骤执行错误</option>
+      <option>E 信息读取错误</option>
+      <option>F 时间与取舍错误</option>
+      <option>G 状态与注意力错误</option>
+    </select>
+    <select id="mastery">
+      <option value="">全部掌握度</option>
+      <option>未掌握</option>
+      <option>初步掌握</option>
+      <option>已形成迁移</option>
+    </select>
+    <button id="refresh">刷新</button>
+  </div>
+
+  <div id="list"></div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const ERRORS = ['A 知识缺口', 'B 题型识别错误', 'C 方法选择错误', 'D 步骤执行错误', 'E 信息读取错误', 'F 时间与取舍错误', 'G 状态与注意力错误'];
+    const MASTERY = ['未掌握', '初步掌握', '已形成迁移'];
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function loadStats() {
+      try {
+        const r = await fetch('/api/mistakes/stats');
+        const s = await r.json();
+        const chips = (arr) => arr.map((x) => `<span class="chip">${esc(x.name || '未分类')} ${x.count}</span>`).join('');
+        $('#stats').innerHTML = `
+          <div class="stat-grid">
+            <div class="stat"><b>${s.total}</b><div class="muted">累计错题</div></div>
+            <div class="stat"><b>${s.byError?.length || 0}</b><div class="muted">错因种类</div></div>
+            <div class="stat"><b>${s.byType?.length || 0}</b><div class="muted">题型种类</div></div>
+          </div>
+          <div class="card"><div class="muted">按模块</div><div class="chips">${chips(s.byModule || []) || '暂无'}</div></div>
+          <div class="card"><div class="muted">按错因</div><div class="chips">${chips(s.byError || []) || '暂无'}</div></div>
+          <div class="card"><div class="muted">按掌握度</div><div class="chips">${chips(s.byMastery || []) || '暂无'}</div></div>
+        `;
+      } catch (e) {
+        $('#stats').innerHTML = `<div class="empty">统计加载失败：${esc(e.message)}</div>`;
+      }
+    }
+
+    function params() {
+      const p = new URLSearchParams();
+      if ($('#q').value.trim()) p.set('q', $('#q').value.trim());
+      if ($('#module').value) p.set('module', $('#module').value);
+      if ($('#type').value.trim()) p.set('type', $('#type').value.trim());
+      if ($('#error').value) p.set('error', $('#error').value);
+      if ($('#mastery').value) p.set('mastery', $('#mastery').value);
+      return p;
+    }
+
+    async function loadList() {
+      $('#list').innerHTML = '<div class="empty">加载中…</div>';
+      try {
+        const r = await fetch('/api/mistakes?' + params().toString() + '&limit=200');
+        const d = await r.json();
+        if (!d.items.length) { $('#list').innerHTML = '<div class="empty">暂无错题</div>'; return; }
+        $('#list').innerHTML = d.items.map(renderItem).join('');
+        bindItems();
+      } catch (e) {
+        $('#list').innerHTML = `<div class="empty">加载失败：${esc(e.message)}</div>`;
+      }
+    }
+
+    function renderItem(m) {
+      const tags = (m.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join(' ');
+      return `
+        <div class="item" data-id="${m.id}">
+          <div class="item-top">
+            <span class="tag">${esc(m.module || '未分类')}</span>
+            <span class="tag">${esc(m.question_type || '未标题型')}</span>
+            ${tags}
+            <span class="tag err">${esc(m.error_type || '未标错因')}</span>
+            <span class="muted">#${m.id} · ${esc((m.created_at || '').slice(0, 10))}</span>
+          </div>
+          <div class="qtext">${esc(m.question_text)}</div>
+          ${m.options ? `<div class="meta">${esc(m.options)}</div>` : ''}
+          <div class="meta">正解：${esc(m.correct_answer || '—')} ｜ 我的答案：${esc(m.user_answer || '—')}</div>
+          ${m.summary ? `<div class="meta">复盘摘要：${esc(m.summary)}</div>` : ''}
+          ${m.trigger_card ? `<div class="meta">触发卡：${esc(m.trigger_card)}</div>` : ''}
+          <div class="item-foot">
+            <span class="muted">掌握度：</span>
+            <select class="mastery-sel">
+              ${MASTERY.map((x) => `<option ${x === m.mastery ? 'selected' : ''}>${x}</option>`).join('')}
+            </select>
+            <button class="ghost review-btn">标记复习一次</button>
+            <button class="danger del-btn">删除</button>
+          </div>
+        </div>`;
+    }
+
+    function bindItems() {
+      document.querySelectorAll('.item').forEach((el) => {
+        const id = Number(el.dataset.id);
+        el.querySelector('.mastery-sel').onchange = async (e) => {
+          await fetch('/api/mistakes/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mastery: e.target.value }) });
+          loadStats();
+        };
+        el.querySelector('.review-btn').onclick = async () => {
+          await fetch('/api/mistakes/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewed: true }) });
+          alert('已记录一次复习');
+          loadList();
+        };
+        el.querySelector('.del-btn').onclick = async () => {
+          if (!confirm('确定删除这道错题？')) return;
+          await fetch('/api/mistakes/' + id, { method: 'DELETE' });
+          loadStats(); loadList();
+        };
+      });
+    }
+
+    $('#refresh').onclick = () => { loadStats(); loadList(); };
+    ['#module', '#error', '#mastery'].forEach((s) => ($(s).onchange = loadList));
+    $('#q').oninput = () => { clearTimeout(window.__t); window.__t = setTimeout(loadList, 300); };
+    $('#type').oninput = () => { clearTimeout(window.__t2); window.__t2 = setTimeout(loadList, 300); };
+
+    loadStats();
+    loadList();
+  </script>
+</body>
+</html>

@@ -74,6 +74,30 @@ CREATE TABLE IF NOT EXISTS update_log (
   skipped_count INTEGER NOT NULL DEFAULT 0,
   detail        TEXT NOT NULL DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS mistakes (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  module          TEXT NOT NULL DEFAULT '',
+  question_type   TEXT NOT NULL DEFAULT '',
+  tags            TEXT NOT NULL DEFAULT '[]',
+  question_text   TEXT NOT NULL,
+  options         TEXT NOT NULL DEFAULT '',
+  correct_answer  TEXT NOT NULL DEFAULT '',
+  user_answer     TEXT NOT NULL DEFAULT '',
+  error_type      TEXT NOT NULL DEFAULT '',
+  summary         TEXT NOT NULL DEFAULT '',
+  trigger_card    TEXT NOT NULL DEFAULT '',
+  mastery         TEXT NOT NULL DEFAULT '未掌握',
+  source          TEXT NOT NULL DEFAULT '',
+  group_id        TEXT NOT NULL DEFAULT '',
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  review_count    INTEGER NOT NULL DEFAULT 0,
+  last_reviewed_at TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_mistakes_module ON mistakes(module);
+CREATE INDEX IF NOT EXISTS idx_mistakes_type ON mistakes(question_type);
+CREATE INDEX IF NOT EXISTS idx_mistakes_error ON mistakes(error_type);
 `);
 
 // 兼容旧库：补充 organized_by 字段
@@ -203,4 +227,77 @@ function safeParseArray(str) {
   } catch {
     return [];
   }
+}
+
+// ---------- 错题本 ----------
+export function addMistake(d) {
+  const r = db
+    .prepare(
+      `INSERT INTO mistakes
+        (module, question_type, tags, question_text, options, correct_answer, user_answer, error_type, summary, trigger_card, mastery, source, group_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      d.module || '',
+      d.question_type || '',
+      JSON.stringify(d.tags || []),
+      d.question_text || '',
+      d.options || '',
+      d.correct_answer || '',
+      d.user_answer || '',
+      d.error_type || '',
+      d.summary || '',
+      d.trigger_card || '',
+      d.mastery || '未掌握',
+      d.source || '',
+      d.group_id || ''
+    );
+  return { id: Number(r.lastInsertRowid) };
+}
+
+export function listMistakes({ module, question_type, error_type, mastery, q, limit = 50, offset = 0 } = {}) {
+  const where = [];
+  const params = [];
+  if (module) { where.push('module = ?'); params.push(module); }
+  if (question_type) { where.push('question_type = ?'); params.push(question_type); }
+  if (error_type) { where.push('error_type = ?'); params.push(error_type); }
+  if (mastery) { where.push('mastery = ?'); params.push(mastery); }
+  if (q) { where.push('(question_text LIKE ? OR summary LIKE ?)'); params.push(`%${q}%`, `%${q}%`); }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM mistakes ${whereSql}`).get(...params).c;
+  const rows = db
+    .prepare(`SELECT * FROM mistakes ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`)
+    .all(...params, Math.max(1, limit), Math.max(0, offset));
+  return { total, items: rows.map((r) => ({ ...r, tags: safeParseArray(r.tags) })) };
+}
+
+export function updateMistake(id, d) {
+  const fields = [];
+  const params = [];
+  for (const k of ['module', 'question_type', 'correct_answer', 'user_answer', 'error_type', 'summary', 'trigger_card', 'mastery', 'source']) {
+    if (d[k] !== undefined) { fields.push(`${k} = ?`); params.push(d[k]); }
+  }
+  if (Array.isArray(d.tags)) { fields.push('tags = ?'); params.push(JSON.stringify(d.tags)); }
+  if (d.reviewed) {
+    fields.push('review_count = review_count + 1');
+    fields.push("last_reviewed_at = strftime('%Y-%m-%dT%H:%M:%SZ','now')");
+  }
+  if (!fields.length) return { changes: 0 };
+  params.push(id);
+  const r = db.prepare(`UPDATE mistakes SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+  return { changes: r.changes };
+}
+
+export function deleteMistake(id) {
+  const r = db.prepare('DELETE FROM mistakes WHERE id = ?').run(id);
+  return { changes: r.changes };
+}
+
+export function mistakeStats() {
+  const total = db.prepare('SELECT COUNT(*) AS c FROM mistakes').get().c;
+  const byModule = db.prepare('SELECT module AS name, COUNT(*) AS count FROM mistakes GROUP BY module ORDER BY count DESC').all();
+  const byType = db.prepare('SELECT question_type AS name, COUNT(*) AS count FROM mistakes GROUP BY question_type ORDER BY count DESC').all();
+  const byError = db.prepare('SELECT error_type AS name, COUNT(*) AS count FROM mistakes GROUP BY error_type ORDER BY count DESC').all();
+  const byMastery = db.prepare('SELECT mastery AS name, COUNT(*) AS count FROM mistakes GROUP BY mastery ORDER BY count DESC').all();
+  return { total, byModule, byType, byError, byMastery };
 }

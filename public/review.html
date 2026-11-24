@@ -32,7 +32,7 @@
 </head>
 <body>
   <h1>行测单题复盘</h1>
-  <p class="muted">上传题目截图 → 识别 → 确认文字 → 按三轮复盘法对话。由 DeepSeek 驱动。</p>
+  <p class="muted">上传题目截图 → 识别 → 确认文字 → 按三轮复盘法对话。由 DeepSeek 驱动。 ｜ <a href="/mistakes.html" style="color:#a8322d">错题本 →</a></p>
   <div id="status" class="status info">正在检测后端…</div>
 
   <div class="card">
@@ -46,6 +46,46 @@
     <textarea id="question" placeholder="识别出的题干/选项会出现在这里，也可以直接粘贴文字…"></textarea>
     <div class="row" style="margin-top:10px">
       <button id="start" disabled>开始复盘</button>
+    </div>
+  </div>
+
+  <div id="classify-card" class="card hidden">
+    <div class="row">
+      <span class="muted">题型：</span>
+      <select id="cls-module">
+        <option>言语理解与表达</option>
+        <option>判断推理</option>
+        <option>数量关系</option>
+        <option>资料分析</option>
+        <option>常识判断</option>
+        <option>未分类</option>
+      </select>
+      <input id="cls-type" placeholder="具体题型（如 增长率）" />
+      <span id="cls-tags" class="muted"></span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="m-correct" placeholder="正确答案" />
+      <input id="m-user" placeholder="我的答案" />
+      <select id="m-error">
+        <option value="">错因（可选）</option>
+        <option>A 知识缺口</option>
+        <option>B 题型识别错误</option>
+        <option>C 方法选择错误</option>
+        <option>D 步骤执行错误</option>
+        <option>E 信息读取错误</option>
+        <option>F 时间与取舍错误</option>
+        <option>G 状态与注意力错误</option>
+      </select>
+      <select id="m-mastery">
+        <option>未掌握</option>
+        <option>初步掌握</option>
+        <option>已形成迁移</option>
+      </select>
+    </div>
+    <textarea id="m-summary" placeholder="复盘摘要（可粘贴一句话诊断/纠错动作）" style="min-height:60px;margin-top:8px"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button id="save-mistake">加入错题本</button>
+      <a href="/mistakes.html" style="color:#a8322d;font-size:13px">查看错题本 →</a>
     </div>
   </div>
 
@@ -141,6 +181,7 @@
         $('#question').value = question;
         $('#start').disabled = !question;
         setStatus('识别完成，请核对/修改文字后开始复盘', 'ok');
+        classifyQuestion();
       } catch (e) {
         setStatus('识别请求失败：' + e.message, 'err');
       } finally {
@@ -227,6 +268,50 @@
       if (busy || !started) return;
       $('#input').value = '请继续输出剩余部分。';
       $('#send').click();
+    };
+
+    async function classifyQuestion() {
+      if (!question) return;
+      $('#classify-card').classList.remove('hidden');
+      $('#cls-tags').textContent = '识别题型中…';
+      try {
+        const r = await fetch('/api/ai/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question }),
+        });
+        const j = await r.json();
+        if (j.error) { $('#cls-tags').textContent = '题型识别不可用：' + j.error; return; }
+        if (j.module) $('#cls-module').value = j.module;
+        if (j.type) $('#cls-type').value = j.type;
+        $('#cls-tags').textContent = (j.tags || []).join(' / ');
+      } catch (e) {
+        $('#cls-tags').textContent = '题型识别失败：' + e.message;
+      }
+    }
+
+    $('#save-mistake').onclick = async () => {
+      const q = $('#question').value.trim();
+      if (!q) { setStatus('题目为空', 'err'); return; }
+      const body = {
+        module: $('#cls-module').value,
+        question_type: $('#cls-type').value.trim(),
+        question_text: q,
+        correct_answer: $('#m-correct').value.trim(),
+        user_answer: $('#m-user').value.trim(),
+        error_type: $('#m-error').value,
+        mastery: $('#m-mastery').value,
+        summary: $('#m-summary').value.trim(),
+        tags: ($('#cls-tags').textContent || '').split('/').map((s) => s.trim()).filter(Boolean),
+      };
+      try {
+        const r = await fetch('/api/mistakes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const j = await r.json();
+        if (j.error) throw new Error(j.error);
+        setStatus('已加入错题本 #' + j.id, 'ok');
+      } catch (e) {
+        setStatus('加入错题本失败：' + e.message, 'err');
+      }
     };
 
     checkServer();
