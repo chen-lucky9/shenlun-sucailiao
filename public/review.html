@@ -26,6 +26,22 @@
     .msg { max-width: 92%; padding: 12px 14px; border-radius: 12px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
     .msg.assistant { align-self: flex-start; background: #fff; border: 1px solid #e6dfd2; }
     .msg.user { align-self: flex-end; background: #f6e7e4; border: 1px solid #eccfca; }
+    .msg.assistant { white-space: normal; }
+    .msg.assistant h1, .msg.assistant h2, .msg.assistant h3, .msg.assistant h4 { margin: 12px 0 6px; font-family: "Songti SC", "SimSun", serif; line-height: 1.45; }
+    .msg.assistant h2 { font-size: 17px; border-left: 3px solid #a8322d; padding-left: 8px; }
+    .msg.assistant h3 { font-size: 15px; color: #a8322d; }
+    .msg.assistant h4 { font-size: 14px; }
+    .msg.assistant p { margin: 6px 0; }
+    .msg.assistant ul, .msg.assistant ol { margin: 6px 0; padding-left: 20px; }
+    .msg.assistant li { margin: 3px 0; }
+    .msg.assistant blockquote { margin: 8px 0; padding: 8px 12px; background: #f7f3ea; border-left: 3px solid #d8cfbe; color: #5a5349; }
+    .msg.assistant code { background: #f1ebdf; padding: 1px 4px; border-radius: 4px; font-family: Consolas, monospace; font-size: 13px; }
+    .msg.assistant pre.md-code { background: #f7f3ea; padding: 10px; border-radius: 8px; overflow-x: auto; }
+    .msg.assistant strong { color: #a8322d; }
+    .md-table-wrap { overflow-x: auto; margin: 8px 0; }
+    .md-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    .md-table th, .md-table td { border: 1px solid #e6dfd2; padding: 6px 8px; text-align: left; vertical-align: top; }
+    .md-table th { background: #f7f3ea; font-weight: 600; }
     .chat-input { display: flex; gap: 8px; }
     .chat-input textarea { flex: 1; min-height: 52px; }
     .hidden { display: none !important; }
@@ -205,13 +221,100 @@
       $('#start').disabled = !question;
     };
 
-    function addMsg(role, text) {
+    function addMsg(role, text, render = false) {
       const el = document.createElement('div');
       el.className = 'msg ' + role;
-      el.textContent = text;
+      if (role === 'assistant' && render) el.innerHTML = renderMarkdown(text);
+      else el.textContent = text;
       $('#chat').appendChild(el);
       window.scrollTo(0, document.body.scrollHeight);
       return el;
+    }
+
+    // 轻量 Markdown 渲染（标题/表格/列表/引用/加粗/代码）
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function inlineMd(s) {
+      let x = escapeHtml(s);
+      x = x.replace(/`([^`]+)`/g, '<code>$1</code>');
+      x = x.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      x = x.replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
+      return x;
+    }
+    function renderMarkdown(md) {
+      const lines = String(md).replace(/\r\n/g, '\n').split('\n');
+      const out = [];
+      let i = 0;
+      let inCode = false;
+      let codeBuf = [];
+      const flushCode = () => {
+        if (codeBuf.length) {
+          out.push('<pre class="md-code"><code>' + escapeHtml(codeBuf.join('\n')) + '</code></pre>');
+          codeBuf = [];
+        }
+      };
+      while (i < lines.length) {
+        const line = lines[i];
+        if (/^```/.test(line.trim())) {
+          if (inCode) { flushCode(); inCode = false; } else { inCode = true; }
+          i++;
+          continue;
+        }
+        if (inCode) { codeBuf.push(line); i++; continue; }
+
+        if (/^\s*\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1])) {
+          const header = line.trim().replace(/^\||\|$/g, '').split('|').map((s) => s.trim());
+          i += 2;
+          const rows = [];
+          while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) {
+            rows.push(lines[i].trim().replace(/^\||\|$/g, '').split('|').map((s) => s.trim()));
+            i++;
+          }
+          out.push('<div class="md-table-wrap"><table class="md-table"><thead><tr>' + header.map((h) => '<th>' + inlineMd(h) + '</th>').join('') + '</tr></thead><tbody>' + rows.map((r) => '<tr>' + r.map((c) => '<td>' + inlineMd(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>');
+          continue;
+        }
+
+        const h = line.match(/^(#{1,4})\s+(.*)$/);
+        if (h) {
+          const level = Math.min(4, h[1].length);
+          out.push('<h' + level + ' class="md-h">' + inlineMd(h[2]) + '</h' + level + '>');
+          i++;
+          continue;
+        }
+
+        if (/^>\s?/.test(line)) {
+          const buf = [];
+          while (i < lines.length && /^>\s?/.test(lines[i])) { buf.push(lines[i].replace(/^>\s?/, '')); i++; }
+          out.push('<blockquote class="md-quote">' + buf.map(inlineMd).join('<br>') + '</blockquote>');
+          continue;
+        }
+
+        if (/^\s*[-*+]\s+/.test(line)) {
+          const items = [];
+          while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*[-*+]\s+/, '')); i++; }
+          out.push('<ul class="md-ul">' + items.map((it) => '<li>' + inlineMd(it) + '</li>').join('') + '</ul>');
+          continue;
+        }
+
+        if (/^\s*\d+[.、)]\s+/.test(line)) {
+          const items = [];
+          while (i < lines.length && /^\s*\d+[.、)]\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*\d+[.、)]\s+/, '')); i++; }
+          out.push('<ol class="md-ol">' + items.map((it) => '<li>' + inlineMd(it) + '</li>').join('') + '</ol>');
+          continue;
+        }
+
+        if (!line.trim()) { i++; continue; }
+
+        const buf = [];
+        while (i < lines.length && lines[i].trim() && !/^(#{1,4})\s+|^>\s?|^\s*[-*+]\s+|^\s*\d+[.、)]\s+|^\s*\|.*\|\s*$|^```/.test(lines[i])) {
+          buf.push(lines[i]);
+          i++;
+        }
+        out.push('<p class="md-p">' + buf.map(inlineMd).join('<br>') + '</p>');
+      }
+      flushCode();
+      return out.join('');
     }
 
     async function callReview(historyToSend) {
@@ -237,7 +340,7 @@
       const placeholder = addMsg('assistant', '思考中…');
       try {
         const reply = await callReview([]);
-        placeholder.textContent = reply;
+        placeholder.innerHTML = renderMarkdown(reply);
         history.push({ role: 'assistant', content: reply });
         started = true;
         $('#input-area').classList.remove('hidden');
@@ -263,7 +366,7 @@
       const placeholder = addMsg('assistant', '思考中…');
       try {
         const reply = await callReview(history);
-        placeholder.textContent = reply;
+        placeholder.innerHTML = renderMarkdown(reply);
         history.push({ role: 'assistant', content: reply });
       } catch (e) {
         placeholder.textContent = '请求失败：' + e.message;
