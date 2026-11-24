@@ -386,7 +386,7 @@ async function handleApi(req, res, url) {
     const { question, module, options, material } = await readBody(req);
     if (!question) return sendJson(res, 400, { error: '缺少题目文字' });
     const lib = loadHuasheng13(module || '资料分析');
-    const sys = `你是花生十三风格的考公行测解题教练。方法库：\n${lib}\n\n请像老师在草稿纸上边写边讲，用“人话”讲题，不要写成教科书：\n1. 先用一句话点明题型；\n2. 再说“人怎么想”：先看问法、定位哪列数据、用什么速算（凑整/截位/交叉相乘）；\n3. 计算只保留关键一步，不要逐步列竖式；不要使用 \\[ \\]、\\frac、\\text 等 LaTeX，用 × ÷ ≈ % 和括号；\n4. 最后给答案 + 1-2 个易错点。\n总长度 300-500 字，简洁。不要编造题目没有的条件；不确定的地方明确说明。`;
+    const sys = `你是花生十三风格的考公行测解题教练。方法库：\n${lib}\n\n请严格模仿花生十三的解题思路，输出 Markdown，保持下面的结构：\n## 题型识别\n## 解题思路\n## 计算/推理过程\n## 答案\n## 易错点\n## 速算/秒杀技巧（如适用）\n\n注意：数学式子用普通文本写，用 × ÷ ≈ % 和括号、斜杠，不要使用 \\[ \\]、\\frac、\\text 等 LaTeX，保证手机上直接能看懂。\n不要编造题目没有的条件；不确定的地方明确说明。`;
     try {
       const r = await chatWithModel({
         messages: [
