@@ -8,7 +8,10 @@ if (!llmEnabled()) {
   process.exit(1);
 }
 
-const rows = db.prepare('SELECT * FROM materials ORDER BY id').all();
+const onlyRule = process.argv.includes('--only-rule');
+const allRows = db.prepare('SELECT * FROM materials ORDER BY id').all();
+const rows = onlyRule ? allRows.filter((r) => r.organized_by !== 'deepseek') : allRows;
+console.log(`待整理 ${rows.length} 篇${onlyRule ? '（仅规则整理）' : ''}`);
 const upd = db.prepare(
   `UPDATE materials SET core_view=?, golden_sentences=?, argument_structure=?, topics=?, writing_angles=?, summary=?, organized_by=? WHERE id=?`
 );
