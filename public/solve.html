@@ -90,6 +90,11 @@
     const $ = (s) => document.querySelector(s);
     let b64 = '', mime = 'image/jpeg', question = '', solutionText = '';
 
+    function todayStr() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     function setStatus(msg, type = 'info') {
       const el = $('#status');
       el.textContent = msg;
@@ -234,6 +239,7 @@
           tags: ($('#tags').textContent || '').split('/').map((s) => s.trim()).filter(Boolean),
           question_text: q,
           solution: solutionText,
+          question_date: todayStr(),
           favorite: $('#fav').checked ? 1 : 0,
           source: '拍照解题',
         };
