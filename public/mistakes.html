@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>错题本 · 行测</title>
+  <title>题库 / 错题本 · 行测</title>
   <style>
     body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 960px; margin: 0 auto; padding: 20px 16px 80px; background: #faf7f1; color: #2b2620; }
     h1 { font-size: 22px; margin: 0 0 4px; }
@@ -32,11 +32,24 @@
     .item-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
     .item-foot select { padding: 5px 8px; border: 1px solid #d8cfbe; border-radius: 6px; font-size: 12px; }
     .empty { text-align: center; color: #8a8175; padding: 40px; }
+    .star { background: transparent; border: 0; color: #c9b98f; font-size: 18px; padding: 0 2px; cursor: pointer; }
+    .star.on { color: #d4a017; }
+    .item-top .star { margin-left: auto; }
+    .md { font-size: 14px; line-height: 1.7; }
+    .md h2 { font-size: 16px; border-left: 3px solid #a8322d; padding-left: 8px; margin: 10px 0 6px; }
+    .md h3 { font-size: 14px; color: #a8322d; margin: 8px 0 4px; }
+    .md p { margin: 5px 0; }
+    .md ul, .md ol { padding-left: 20px; margin: 4px 0; }
+    .md-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    .md-table th, .md-table td { border: 1px solid #e6dfd2; padding: 5px 7px; text-align: left; }
+    .md-table th { background: #f7f3ea; }
+    .md-quote { margin: 8px 0; padding: 6px 10px; background: #f7f3ea; border-left: 3px solid #d8cfbe; }
+    details summary { cursor: pointer; color: #a8322d; font-size: 13px; }
   </style>
 </head>
 <body>
-  <h1>错题本</h1>
-  <p class="muted"><a href="/review.html">← 去单题复盘</a> ｜ 按模块、题型、错因分类汇总，手动维护掌握度。</p>
+  <h1>题库 / 错题本</h1>
+  <p class="muted"><a href="/solve.html">← 拍照解题</a> ｜ <a href="/review.html">去复盘</a> ｜ <a href="/skill.html">方法库</a> ｜ 按模块/题型/错因汇总；支持关键词、收藏、日期排序。</p>
 
   <div id="stats"></div>
 
@@ -69,11 +82,17 @@
       <option>初步掌握</option>
       <option>已形成迁移</option>
     </select>
+    <select id="sort">
+      <option value="">按入库日期</option>
+      <option value="question_date">按题目日期</option>
+    </select>
+    <label class="muted" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="fav-only" /> 只看收藏</label>
     <button id="refresh">刷新</button>
   </div>
 
   <div id="list"></div>
 
+  <script src="/md.js"></script>
   <script>
     const $ = (s) => document.querySelector(s);
     const ERRORS = ['A 知识缺口', 'B 题型识别错误', 'C 方法选择错误', 'D 步骤执行错误', 'E 信息读取错误', 'F 时间与取舍错误', 'G 状态与注意力错误'];
@@ -91,6 +110,7 @@
         $('#stats').innerHTML = `
           <div class="stat-grid">
             <div class="stat"><b>${s.total}</b><div class="muted">累计错题</div></div>
+            <div class="stat"><b>${s.favorites || 0}</b><div class="muted">收藏</div></div>
             <div class="stat"><b>${s.byError?.length || 0}</b><div class="muted">错因种类</div></div>
             <div class="stat"><b>${s.byType?.length || 0}</b><div class="muted">题型种类</div></div>
           </div>
@@ -110,6 +130,8 @@
       if ($('#type').value.trim()) p.set('type', $('#type').value.trim());
       if ($('#error').value) p.set('error', $('#error').value);
       if ($('#mastery').value) p.set('mastery', $('#mastery').value);
+      if ($('#sort').value) p.set('sort', $('#sort').value);
+      if ($('#fav-only').checked) p.set('favorite', '1');
       return p;
     }
 
@@ -136,12 +158,14 @@
             ${tags}
             <span class="tag err">${esc(m.error_type || '未标错因')}</span>
             <span class="muted">#${m.id} · ${esc((m.created_at || '').slice(0, 10))}</span>
+            <button class="star ${m.favorite ? 'on' : ''}" data-fav="${m.favorite ? 1 : 0}" title="收藏">${m.favorite ? '★' : '☆'}</button>
           </div>
           <div class="qtext">${esc(m.question_text)}</div>
           ${m.options ? `<div class="meta">${esc(m.options)}</div>` : ''}
           <div class="meta">正解：${esc(m.correct_answer || '—')} ｜ 我的答案：${esc(m.user_answer || '—')}</div>
           ${m.summary ? `<div class="meta">复盘摘要：${esc(m.summary)}</div>` : ''}
           ${m.trigger_card ? `<div class="meta">触发卡：${esc(m.trigger_card)}</div>` : ''}
+          ${m.solution ? `<details style="margin-top:8px"><summary>查看解法</summary><div class="md">${renderMarkdown(m.solution)}</div></details>` : ''}
           <div class="item-foot">
             <span class="muted">掌握度：</span>
             <select class="mastery-sel">
@@ -160,6 +184,12 @@
           await fetch('/api/mistakes/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mastery: e.target.value }) });
           loadStats();
         };
+        const star = el.querySelector('.star');
+        if (star) star.onclick = async () => {
+          const next = star.dataset.fav === '1' ? 0 : 1;
+          await fetch('/api/mistakes/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ favorite: next }) });
+          loadList(); loadStats();
+        };
         el.querySelector('.review-btn').onclick = async () => {
           await fetch('/api/mistakes/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewed: true }) });
           alert('已记录一次复习');
@@ -174,7 +204,8 @@
     }
 
     $('#refresh').onclick = () => { loadStats(); loadList(); };
-    ['#module', '#error', '#mastery'].forEach((s) => ($(s).onchange = loadList));
+    ['#module', '#error', '#mastery', '#sort'].forEach((s) => ($(s).onchange = loadList));
+    $('#fav-only').onchange = loadList;
     $('#q').oninput = () => { clearTimeout(window.__t); window.__t = setTimeout(loadList, 300); };
     $('#type').oninput = () => { clearTimeout(window.__t2); window.__t2 = setTimeout(loadList, 300); };
 

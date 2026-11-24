@@ -74,7 +74,7 @@ function readBody(req) {
     });
     req.on('end', () => {
       if (!data) return resolve({});
-      try { resolve(JSON.parse(data)); }
+      try { resolve(JSON.parse(data.replace(/^\uFEFF/, ''))); }
       catch { reject(new Error('无效的 JSON 请求体')); }
     });
     req.on('error', reject);
@@ -306,9 +306,13 @@ async function handleApi(req, res, url) {
     const error_type = url.searchParams.get('error') || '';
     const mastery = url.searchParams.get('mastery') || '';
     const q = url.searchParams.get('q') || '';
+    const favorite = url.searchParams.get('favorite') || '';
+    const sort = url.searchParams.get('sort') || '';
+    const from = url.searchParams.get('from') || '';
+    const to = url.searchParams.get('to') || '';
     const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') || 50)));
     const offset = Math.max(0, Number(url.searchParams.get('offset') || 0));
-    return sendJson(res, 200, listMistakes({ module, question_type, error_type, mastery, q, limit, offset }));
+    return sendJson(res, 200, listMistakes({ module, question_type, error_type, mastery, q, favorite, sort, from, to, limit, offset }));
   }
 
   // 添加错题
@@ -350,6 +354,28 @@ async function handleApi(req, res, url) {
     const sys = `你是花生十三考公方法库助手。下面是方法库资料：\n${lib}\n\n请基于资料回答用户问题；资料没有覆盖的内容要明确说明，不要编造。用简洁的 Markdown 回答。`;
     try {
       const r = await chatWithModel({ messages: [{ role: 'system', content: sys }, { role: 'user', content: String(question) }], temperature: 0.3, maxTokens: 2000 });
+      return sendJson(res, 200, { ok: true, reply: r.text, model: r.model });
+    } catch (e) {
+      return sendJson(res, 500, { error: e.message });
+    }
+  }
+
+  // 花生十三风格解题
+  if (method === 'POST' && pathname === '/api/ai/solve') {
+    if (!chatEnabled()) return sendJson(res, 503, { error: '未配置 DEEPSEEK_API_KEY' });
+    const { question, module, options } = await readBody(req);
+    if (!question) return sendJson(res, 400, { error: '缺少题目文字' });
+    const lib = loadHuasheng13(module || '资料分析');
+    const sys = `你是花生十三风格的考公行测解题教练。方法库：\n${lib}\n\n请严格模仿花生十三的解题思路，输出 Markdown：\n## 题型识别\n## 解题思路\n## 计算/推理过程\n## 答案\n## 易错点\n## 速算/秒杀技巧（如适用）\n不要编造题目没有的条件；不确定的地方明确说明。`;
+    try {
+      const r = await chatWithModel({
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: String(question) + (options ? '\n选项：' + options : '') },
+        ],
+        temperature: 0.3,
+        maxTokens: 3000,
+      });
       return sendJson(res, 200, { ok: true, reply: r.text, model: r.model });
     } catch (e) {
       return sendJson(res, 500, { error: e.message });

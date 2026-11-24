@@ -90,6 +90,9 @@ CREATE TABLE IF NOT EXISTS mistakes (
   mastery         TEXT NOT NULL DEFAULT '未掌握',
   source          TEXT NOT NULL DEFAULT '',
   group_id        TEXT NOT NULL DEFAULT '',
+  solution        TEXT NOT NULL DEFAULT '',
+  question_date   TEXT NOT NULL DEFAULT '',
+  favorite        INTEGER NOT NULL DEFAULT 0,
   created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
   review_count    INTEGER NOT NULL DEFAULT 0,
   last_reviewed_at TEXT NOT NULL DEFAULT ''
@@ -106,6 +109,17 @@ CREATE INDEX IF NOT EXISTS idx_mistakes_error ON mistakes(error_type);
   if (!cols.some((c) => c.name === 'organized_by')) {
     db.exec(`ALTER TABLE materials ADD COLUMN organized_by TEXT NOT NULL DEFAULT 'rule'`);
   }
+}
+
+// 兼容旧库：错题本补充 solution / question_date / favorite
+{
+  const cols = db.prepare(`PRAGMA table_info(mistakes)`).all().map((c) => c.name);
+  const add = (name, ddl) => {
+    if (!cols.includes(name)) db.exec(`ALTER TABLE mistakes ADD COLUMN ${ddl}`);
+  };
+  add('solution', "solution TEXT NOT NULL DEFAULT ''");
+  add('question_date', "question_date TEXT NOT NULL DEFAULT ''");
+  add('favorite', 'favorite INTEGER NOT NULL DEFAULT 0');
 }
 
 // ---------- 8 大主题（英文 key 硬性要求）----------
@@ -234,8 +248,8 @@ export function addMistake(d) {
   const r = db
     .prepare(
       `INSERT INTO mistakes
-        (module, question_type, tags, question_text, options, correct_answer, user_answer, error_type, summary, trigger_card, mastery, source, group_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        (module, question_type, tags, question_text, options, correct_answer, user_answer, error_type, summary, trigger_card, mastery, source, group_id, solution, question_date, favorite)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       d.module || '',
@@ -250,23 +264,36 @@ export function addMistake(d) {
       d.trigger_card || '',
       d.mastery || '未掌握',
       d.source || '',
-      d.group_id || ''
+      d.group_id || '',
+      d.solution || '',
+      d.question_date || '',
+      d.favorite ? 1 : 0
     );
   return { id: Number(r.lastInsertRowid) };
 }
 
-export function listMistakes({ module, question_type, error_type, mastery, q, limit = 50, offset = 0 } = {}) {
+export function listMistakes({ module, question_type, error_type, mastery, q, favorite, sort, from, to, limit = 50, offset = 0 } = {}) {
   const where = [];
   const params = [];
   if (module) { where.push('module = ?'); params.push(module); }
   if (question_type) { where.push('question_type = ?'); params.push(question_type); }
   if (error_type) { where.push('error_type = ?'); params.push(error_type); }
   if (mastery) { where.push('mastery = ?'); params.push(mastery); }
-  if (q) { where.push('(question_text LIKE ? OR summary LIKE ?)'); params.push(`%${q}%`, `%${q}%`); }
+  if (favorite === '1' || favorite === 1 || favorite === true) { where.push('favorite = 1'); }
+  if (from) { where.push('substr(created_at,1,10) >= ?'); params.push(from); }
+  if (to) { where.push('substr(created_at,1,10) <= ?'); params.push(to); }
+  if (q) {
+    where.push('(question_text LIKE ? OR summary LIKE ? OR solution LIKE ? OR tags LIKE ?)');
+    const like = `%${q}%`;
+    params.push(like, like, like, like);
+  }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const total = db.prepare(`SELECT COUNT(*) AS c FROM mistakes ${whereSql}`).get(...params).c;
+  const order = sort === 'question_date'
+    ? "CASE WHEN question_date = '' THEN created_at ELSE question_date END DESC, id DESC"
+    : 'created_at DESC, id DESC';
   const rows = db
-    .prepare(`SELECT * FROM mistakes ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`)
+    .prepare(`SELECT * FROM mistakes ${whereSql} ORDER BY ${order} LIMIT ? OFFSET ?`)
     .all(...params, Math.max(1, limit), Math.max(0, offset));
   return { total, items: rows.map((r) => ({ ...r, tags: safeParseArray(r.tags) })) };
 }
@@ -274,10 +301,11 @@ export function listMistakes({ module, question_type, error_type, mastery, q, li
 export function updateMistake(id, d) {
   const fields = [];
   const params = [];
-  for (const k of ['module', 'question_type', 'correct_answer', 'user_answer', 'error_type', 'summary', 'trigger_card', 'mastery', 'source']) {
+  for (const k of ['module', 'question_type', 'correct_answer', 'user_answer', 'error_type', 'summary', 'trigger_card', 'mastery', 'source', 'solution', 'question_date']) {
     if (d[k] !== undefined) { fields.push(`${k} = ?`); params.push(d[k]); }
   }
   if (Array.isArray(d.tags)) { fields.push('tags = ?'); params.push(JSON.stringify(d.tags)); }
+  if (d.favorite !== undefined) { fields.push('favorite = ?'); params.push(d.favorite ? 1 : 0); }
   if (d.reviewed) {
     fields.push('review_count = review_count + 1');
     fields.push("last_reviewed_at = strftime('%Y-%m-%dT%H:%M:%SZ','now')");
@@ -299,5 +327,6 @@ export function mistakeStats() {
   const byType = db.prepare('SELECT question_type AS name, COUNT(*) AS count FROM mistakes GROUP BY question_type ORDER BY count DESC').all();
   const byError = db.prepare('SELECT error_type AS name, COUNT(*) AS count FROM mistakes GROUP BY error_type ORDER BY count DESC').all();
   const byMastery = db.prepare('SELECT mastery AS name, COUNT(*) AS count FROM mistakes GROUP BY mastery ORDER BY count DESC').all();
-  return { total, byModule, byType, byError, byMastery };
+  const favorites = db.prepare('SELECT COUNT(*) AS c FROM mistakes WHERE favorite = 1').get().c;
+  return { total, favorites, byModule, byType, byError, byMastery };
 }

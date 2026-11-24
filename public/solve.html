@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>拍照解题 · 花生十三</title>
+  <style>
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 760px; margin: 0 auto; padding: 18px 14px 90px; background: #faf7f1; color: #2b2620; }
+    h1 { font-size: 21px; margin: 0 0 4px; }
+    a { color: #a8322d; text-decoration: none; }
+    .muted { color: #8a8175; font-size: 13px; }
+    .card { background: #fff; border: 1px solid #e6dfd2; border-radius: 12px; padding: 14px; margin: 12px 0; }
+    input[type=file] { display: block; margin: 8px 0; }
+    textarea { width: 100%; box-sizing: border-box; min-height: 90px; padding: 10px; border: 1px solid #d8cfbe; border-radius: 8px; font-size: 15px; font-family: inherit; line-height: 1.6; resize: vertical; }
+    select, input[type=text] { padding: 8px 10px; border: 1px solid #d8cfbe; border-radius: 8px; font-size: 14px; font-family: inherit; background: #fff; }
+    button { background: #a8322d; color: #fff; border: 0; border-radius: 10px; padding: 11px 18px; font-size: 15px; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    button.ghost { background: #fff; color: #2b2620; border: 1px solid #d8cfbe; }
+    img { max-width: 100%; border-radius: 8px; margin-top: 8px; display: none; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .status { padding: 9px 12px; border-radius: 8px; font-size: 13px; margin: 8px 0; }
+    .status.ok { background: #e8f5e9; color: #1b5e20; }
+    .status.warn { background: #fff8e1; color: #7a5b00; }
+    .status.err { background: #fdecea; color: #a8322d; }
+    .status.info { background: #e8f0fe; color: #1a56db; }
+    /* markdown */
+    #solution h1, #solution h2, #solution h3, #solution h4 { font-family: "Songti SC", "SimSun", serif; margin: 14px 0 8px; line-height: 1.45; }
+    #solution h2 { font-size: 18px; border-left: 3px solid #a8322d; padding-left: 8px; }
+    #solution h3 { font-size: 16px; color: #a8322d; }
+    #solution p { margin: 7px 0; line-height: 1.75; }
+    #solution ul, #solution ol { margin: 7px 0; padding-left: 22px; }
+    #solution li { margin: 3px 0; }
+    #solution strong { color: #a8322d; }
+    .md-table-wrap { overflow-x: auto; margin: 10px 0; }
+    .md-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    .md-table th, .md-table td { border: 1px solid #e6dfd2; padding: 6px 8px; text-align: left; vertical-align: top; }
+    .md-table th { background: #f7f3ea; font-weight: 600; }
+    .md-quote { margin: 10px 0; padding: 8px 12px; background: #f7f3ea; border-left: 3px solid #d8cfbe; color: #5a5349; }
+    code { background: #f1ebdf; padding: 1px 4px; border-radius: 4px; font-family: Consolas, monospace; font-size: 13px; }
+    pre.md-code { background: #f7f3ea; padding: 10px; border-radius: 8px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>拍照解题 · 花生十三</h1>
+  <p class="muted">拍下不会的题 → 识别 → 自动判题型 → 用花生十三方法解题 → 一键存入题库。 ｜ <a href="/mistakes.html">题库 →</a> ｜ <a href="/review.html">复盘 →</a> ｜ <a href="/skill.html">方法库 →</a></p>
+  <div id="status" class="status info">准备就绪</div>
+
+  <div class="card">
+    <div class="row">
+      <input type="file" id="file" accept="image/*" capture="environment" />
+      <button id="recognize" disabled>识别题目</button>
+    </div>
+    <img id="preview" alt="预览" />
+    <p class="muted" style="margin-top:8px">识别结果（可修改；也可直接粘贴题目文字）：</p>
+    <textarea id="question" placeholder="题干和选项…"></textarea>
+    <div class="row" style="margin-top:8px">
+      <span class="muted">题型：</span>
+      <select id="module">
+        <option value="">未分类</option>
+        <option>言语理解与表达</option>
+        <option>判断推理</option>
+        <option>数量关系</option>
+        <option>资料分析</option>
+        <option>常识判断</option>
+        <option>申论</option>
+      </select>
+      <input type="text" id="qtype" placeholder="具体题型（自动识别）" />
+      <span class="muted" id="tags"></span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="solve" disabled>用花生十三方法解题</button>
+      <button id="classify" class="ghost">重新识别题型</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <strong>解题结果</strong>
+      <span class="muted">Markdown 渲染</span>
+    </div>
+    <div id="solution" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:10px">
+      <label class="muted"><input type="checkbox" id="fav" /> 收藏</label>
+      <button id="save" disabled>加入题库</button>
+    </div>
+  </div>
+
+  <script src="/md.js"></script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    let b64 = '', mime = 'image/jpeg', question = '', solutionText = '';
+
+    function setStatus(msg, type = 'info') {
+      const el = $('#status');
+      el.textContent = msg;
+      el.className = 'status ' + type;
+    }
+
+    async function check() {
+      try {
+        const r = await fetch('/api/ai/vision/info', { cache: 'no-store' });
+        const j = await r.json();
+        if (j.enabled) setStatus('已连接，视觉模型：' + (j.model || '未知'), 'ok');
+        else setStatus('后端未配置 VISION_API_KEY / DEEPSEEK_API_KEY', 'warn');
+      } catch {
+        setStatus('无法连接后端：请确认 npm start 正在运行', 'err');
+      }
+    }
+
+    function loadImage(f) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('图片无法解码（可能是 HEIC）'));
+        img.src = URL.createObjectURL(f);
+      });
+    }
+
+    $('#file').onchange = async () => {
+      const f = $('#file').files[0];
+      if (!f) return;
+      try {
+        const img = await loadImage(f);
+        const max = 1800;
+        let w = img.width, h = img.height;
+        if (Math.max(w, h) > max) {
+          const s = max / Math.max(w, h);
+          w = Math.round(w * s); h = Math.round(h * s);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        b64 = dataUrl.split(',')[1];
+        mime = 'image/jpeg';
+        $('#preview').src = dataUrl;
+        $('#preview').style.display = 'block';
+        $('#recognize').disabled = false;
+        setStatus('图片已就绪，点「识别题目」', 'info');
+      } catch (e) {
+        setStatus('读取图片失败：' + e.message, 'err');
+      }
+    };
+
+    $('#recognize').onclick = async () => {
+      if (!b64) return;
+      $('#recognize').disabled = true;
+      setStatus('识别中…', 'info');
+      try {
+        const r = await fetch('/api/ai/vision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: b64, mime, prompt: '请识别图片中的行测题目，原样输出题干和选项，不要作答。' }),
+        });
+        const j = await r.json();
+        if (j.error) { setStatus('识别失败：' + j.error, 'err'); return; }
+        question = (j.text || '').trim();
+        $('#question').value = question;
+        $('#solve').disabled = !question;
+        if (j.finishReason === 'length') setStatus('识别可能被截断，请分图上传', 'warn');
+        else setStatus('识别完成，正在识别题型…', 'ok');
+        await classify();
+      } catch (e) {
+        setStatus('识别请求失败：' + e.message, 'err');
+      } finally {
+        $('#recognize').disabled = false;
+      }
+    };
+
+    async function classify() {
+      const q = $('#question').value.trim();
+      if (!q) return;
+      $('#classify').disabled = true;
+      try {
+        const r = await fetch('/api/ai/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q }),
+        });
+        const j = await r.json();
+        if (j.error) { setStatus('题型识别不可用：' + j.error, 'warn'); return; }
+        if (j.module) $('#module').value = j.module;
+        if (j.type) $('#qtype').value = j.type;
+        $('#tags').textContent = (j.tags || []).join(' / ');
+        setStatus('题型：' + (j.module || '') + ' / ' + (j.type || ''), 'ok');
+      } catch (e) {
+        setStatus('题型识别失败：' + e.message, 'warn');
+      } finally {
+        $('#classify').disabled = false;
+      }
+    }
+
+    $('#question').oninput = () => {
+      question = $('#question').value.trim();
+      $('#solve').disabled = !question;
+      $('#save').disabled = !solutionText;
+    };
+
+    $('#classify').onclick = classify;
+
+    $('#solve').onclick = async () => {
+      question = $('#question').value.trim();
+      if (!question) return;
+      $('#solve').disabled = true;
+      setStatus('解题中…', 'info');
+      $('#solution').innerHTML = '<p class="muted">思考中…</p>';
+      try {
+        const r = await fetch('/api/ai/solve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, module: $('#module').value }),
+        });
+        const j = await r.json();
+        if (j.error) { $('#solution').innerHTML = '<p class="muted">错误：' + j.error + '</p>'; setStatus('解题失败', 'err'); return; }
+        solutionText = j.reply || '';
+        $('#solution').innerHTML = renderMarkdown(solutionText);
+        $('#save').disabled = !solutionText;
+        setStatus('解题完成，可加入题库', 'ok');
+      } catch (e) {
+        $('#solution').innerHTML = '<p class="muted">请求失败：' + e.message + '</p>';
+      } finally {
+        $('#solve').disabled = false;
+      }
+    };
+
+    $('#save').onclick = async () => {
+      const q = $('#question').value.trim();
+      if (!q || !solutionText) return;
+      $('#save').disabled = true;
+      try {
+        const body = {
+          module: $('#module').value,
+          question_type: $('#qtype').value.trim(),
+          tags: ($('#tags').textContent || '').split('/').map((s) => s.trim()).filter(Boolean),
+          question_text: q,
+          solution: solutionText,
+          favorite: $('#fav').checked ? 1 : 0,
+          source: '拍照解题',
+        };
+        const r = await fetch('/api/mistakes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const j = await r.json();
+        if (j.error) throw new Error(j.error);
+        setStatus('已加入题库 #' + j.id + (body.favorite ? '（已收藏）' : ''), 'ok');
+      } catch (e) {
+        setStatus('加入题库失败：' + e.message, 'err');
+      } finally {
+        $('#save').disabled = false;
+      }
+    };
+
+    check();
+  </script>
+</body>
+</html>
