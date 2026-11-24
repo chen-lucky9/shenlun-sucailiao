@@ -9,6 +9,7 @@ import {
   db, listTopics, listMaterials, getMaterial, archiveByMonth, stats,
   PUBLIC_DIR, ROOT,
 } from './db.js';
+import { analyzeImage, visionEnabled, visionModel } from './vision.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -63,7 +64,7 @@ function readBody(req) {
     let size = 0;
     req.on('data', (chunk) => {
       size += chunk.length;
-      if (size > 2 * 1024 * 1024) { reject(new Error('请求体过大')); req.destroy(); return; }
+      if (size > 10 * 1024 * 1024) { reject(new Error('请求体过大')); req.destroy(); return; }
       data += chunk;
     });
     req.on('end', () => {
@@ -218,6 +219,24 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, result);
     } catch (e) {
       return sendJson(res, 500, { error: '更新任务执行失败：' + e.message });
+    }
+  }
+
+  // 图片识别（多模态）信息
+  if (method === 'GET' && pathname === '/api/ai/vision/info') {
+    return sendJson(res, 200, { enabled: visionEnabled(), model: visionModel() });
+  }
+
+  // 图片识别（多模态）：body = { image: base64, mime, prompt }
+  if (method === 'POST' && pathname === '/api/ai/vision') {
+    if (!visionEnabled()) return sendJson(res, 503, { error: '未配置 VISION_API_KEY / DEEPSEEK_API_KEY' });
+    const { image, mime, prompt } = await readBody(req);
+    if (!image) return sendJson(res, 400, { error: '缺少图片数据 image(base64)' });
+    try {
+      const r = await analyzeImage({ base64: String(image), mime: mime || 'image/jpeg', prompt });
+      return sendJson(res, 200, { ok: true, text: r.text, model: r.model });
+    } catch (e) {
+      return sendJson(res, 500, { error: e.message });
     }
   }
 

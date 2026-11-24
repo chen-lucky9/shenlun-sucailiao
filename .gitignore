@@ -6,6 +6,9 @@ tools/
 .env.*
 !.env.example
 
+# 行测题库（机构汇编题，先留本地，确认版权后再决定是否公开）
+data/hangce/
+
 # SQLite 运行时文件与日志
 data/materials.db-wal
 data/materials.db-shm

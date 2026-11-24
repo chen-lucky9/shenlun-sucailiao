@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>行测图片识别测试</title>
+  <style>
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 720px; margin: 0 auto; padding: 24px 16px 60px; background: #faf7f1; color: #2b2620; }
+    h1 { font-size: 20px; }
+    .card { background: #fff; border: 1px solid #e6dfd2; border-radius: 12px; padding: 16px; margin: 16px 0; }
+    input[type=file] { display: block; margin: 8px 0; }
+    button { background: #a8322d; color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 15px; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    img { max-width: 100%; border-radius: 8px; margin-top: 10px; display: none; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #f7f3ea; padding: 12px; border-radius: 8px; min-height: 60px; }
+    .muted { color: #8a8175; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>行测图片识别测试</h1>
+  <p class="muted">模型：<span id="model">加载中…</span>。上传一张行测题截图，识别结果会显示在下方。</p>
+  <div class="card">
+    <input type="file" id="file" accept="image/*" capture="environment" />
+    <img id="preview" alt="预览" />
+    <p class="muted">图片会自动压缩到最长边 1600px，避免上传过大。</p>
+    <button id="go" disabled>识别</button>
+  </div>
+  <pre id="out">等待上传图片…</pre>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    let b64 = '', mime = 'image/jpeg';
+
+    fetch('/api/ai/vision/info').then((r) => r.json()).then((j) => {
+      $('#model').textContent = j.enabled ? (j.model || '未知') : '未配置（请设置 VISION_API_KEY / VISION_MODEL）';
+    }).catch(() => { $('#model').textContent = '无法获取'; });
+
+    function loadImage(f) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = URL.createObjectURL(f);
+      });
+    }
+
+    $('#file').onchange = async () => {
+      const f = $('#file').files[0];
+      if (!f) return;
+      try {
+        const img = await loadImage(f);
+        const max = 1600;
+        let w = img.width, h = img.height;
+        if (Math.max(w, h) > max) {
+          const s = max / Math.max(w, h);
+          w = Math.round(w * s); h = Math.round(h * s);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        b64 = dataUrl.split(',')[1];
+        mime = 'image/jpeg';
+        $('#preview').src = dataUrl;
+        $('#preview').style.display = 'block';
+        $('#go').disabled = false;
+        $('#out').textContent = '图片已就绪，点「识别」。';
+      } catch (e) {
+        $('#out').textContent = '读取图片失败：' + e.message;
+      }
+    };
+
+    $('#go').onclick = async () => {
+      if (!b64) return;
+      $('#go').disabled = true;
+      $('#out').textContent = '识别中…（可能需要几秒到几十秒）';
+      try {
+        const r = await fetch('/api/ai/vision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: b64, mime, prompt: '请识别图片中的行测题目，原样输出题干和选项，不要作答。' }),
+        });
+        const j = await r.json();
+        $('#out').textContent = j.error ? ('错误：' + j.error) : ('模型：' + (j.model || '') + '\n\n' + (j.text || '（空）'));
+      } catch (e) {
+        $('#out').textContent = '请求失败：' + e.message;
+      } finally {
+        $('#go').disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
