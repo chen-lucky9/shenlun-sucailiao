@@ -160,7 +160,7 @@ npm run daily                     # 立即执行一次每日更新（含重建�
 
 - **用在线版**（电脑 `npm start`，手机访问同一 Wi-Fi 或内网穿透地址）：数据实时来自数据库，计划任务更新后手机刷新即可看到，**无需手动操作**。
 - **用离线 PWA / 单文件**：内置的是构建时的数据快照。计划任务会自动重建本机 `dist/`，但若你把 `dist/` 部署在静态托管上，需要重新上传新的 `dist/`。
-- **想云端全自动（不依赖电脑）**：把项目推到 GitHub，在 Settings → Pages 中把 Source 选为 **GitHub Actions**；仓库自带的 [.github/workflows/daily-update.yml](shenlun-sucailiao/.github/workflows/daily-update.yml) 会每天 07:30 自动抓取 → 重建 → 发布到 GitHub Pages，手机 PWA 随站点自动更新。
+- **想云端全自动（不依赖电脑）**：按 [DEPLOY-GITHUB.md](shenlun-sucailiao/DEPLOY-GITHUB.md) 操作——推到 GitHub、Pages 选 GitHub Actions，仓库自带的 [daily-update.yml](shenlun-sucailiao/.github/workflows/daily-update.yml) 会每天 07:30 自动抓取 → 重建 → 发布，手机 PWA 随站点自动更新。
   - 说明：该工作流需要 GitHub 仓库与 Actions 权限；抓取依赖来源站点可访问。
 
 ---

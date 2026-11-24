@@ -32,6 +32,9 @@ jobs:
       - name: 抓取并重建离线版
         run: node src/daily.js
 
+      - name: 合并 WAL 到主库
+        run: node scripts/checkpoint.js
+
       - name: 持久化数据库与日报
         run: |
           git config user.name "github-actions[bot]"
