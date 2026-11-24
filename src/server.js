@@ -14,6 +14,7 @@ import { analyzeImage, visionEnabled, visionModel } from './vision.js';
 import { chatWithModel, chatEnabled } from './ai-chat.js';
 import { classifyQuestion } from './classifier.js';
 import { reviewPrompt } from './prompts.js';
+import { loadHuasheng13, hasHuasheng13 } from './skill-library.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -264,9 +265,13 @@ async function handleApi(req, res, url) {
   // 行测单题复盘（文本对话）：body = { question, history }
   if (method === 'POST' && pathname === '/api/ai/review') {
     if (!chatEnabled()) return sendJson(res, 503, { error: '未配置 DEEPSEEK_API_KEY' });
-    const { question, history } = await readBody(req);
+    const { question, history, skill, module } = await readBody(req);
     if (!question) return sendJson(res, 400, { error: '缺少题目文字' });
-    const sys = reviewPrompt();
+    let sys = reviewPrompt();
+    if (skill === 'huasheng13' && hasHuasheng13()) {
+      const lib = loadHuasheng13(module || '');
+      sys += `\n\n【花生十三方法库（参考资料）】\n${lib}\n\n使用要求：对话结构仍严格按上面的三轮复盘流程；在“正确解题路径 / 速算 / 易错点”部分，优先采用方法库中的识别标志、公式与速算方法。不要照搬方法库原文，要结合本题。`;
+    }
     const msgs = [
       { role: 'system', content: sys },
       { role: 'user', content: '我的题目：\n' + String(question) },

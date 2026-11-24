@@ -14,6 +14,7 @@
     button:disabled { opacity: .5; cursor: not-allowed; }
     button.ghost { background: #fff; color: #2b2620; border: 1px solid #d8cfbe; }
     textarea { width: 100%; box-sizing: border-box; min-height: 110px; padding: 10px 12px; border: 1px solid #d8cfbe; border-radius: 8px; font-size: 14px; font-family: inherit; line-height: 1.6; resize: vertical; }
+    select { padding: 7px 10px; border: 1px solid #d8cfbe; border-radius: 8px; font-size: 13px; font-family: inherit; background: #fff; }
     img { max-width: 100%; border-radius: 8px; margin-top: 8px; display: none; }
     .status { padding: 10px 12px; border-radius: 8px; font-size: 14px; margin: 10px 0; }
     .status.ok { background: #e8f5e9; color: #1b5e20; }
@@ -45,6 +46,11 @@
     <p class="muted" style="margin-top:10px">识别结果（可修改；粘贴文字也可以直接开始）：</p>
     <textarea id="question" placeholder="识别出的题干/选项会出现在这里，也可以直接粘贴文字…"></textarea>
     <div class="row" style="margin-top:10px">
+      <span class="muted">复盘技能：</span>
+      <select id="skill">
+        <option value="">通用复盘（小龙哥）</option>
+        <option value="huasheng13">花生十三方法库</option>
+      </select>
       <button id="start" disabled>开始复盘</button>
     </div>
   </div>
@@ -53,6 +59,7 @@
     <div class="row">
       <span class="muted">题型：</span>
       <select id="cls-module">
+        <option value="">未分类</option>
         <option>言语理解与表达</option>
         <option>判断推理</option>
         <option>数量关系</option>
@@ -211,7 +218,7 @@
       const r = await fetch('/api/ai/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, history: historyToSend }),
+        body: JSON.stringify({ question, history: historyToSend, skill: $('#skill').value, module: $('#cls-module').value }),
       });
       const j = await r.json();
       if (j.error) throw new Error(j.error);
