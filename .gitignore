@@ -1,6 +1,11 @@
 node_modules/
 tools/
 
+# 本地环境变量 / 密钥（切勿提交）
+.env
+.env.*
+!.env.example
+
 # SQLite 运行时文件与日志
 data/materials.db-wal
 data/materials.db-shm
